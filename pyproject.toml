@@ -1,0 +1,42 @@
+[project]
+name = "wolfs-screen-hitter"
+version = "1.0.0"
+description = "Aponta o cursor para um alvo visual encontrado na tela, por cor ou template."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "IsmarWolf" }]
+keywords = ["screen", "detection", "template-matching", "hsv", "cursor", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics",
+]
+dependencies = [
+    "opencv-python>=4.9",
+    "numpy>=1.26",
+    "dxcam>=0.0.5",
+    "mss>=9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/IsmarWolf/WolfsScreenHitter"
+Repository = "https://github.com/IsmarWolf/WolfsScreenHitter"
+Issues = "https://github.com/IsmarWolf/WolfsScreenHitter/issues"
+
+[project.scripts]
+wolfs-screen-hitter = "wolfs_screen_hitter.app:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["wolfs_screen_hitter"]
+
+[tool.setuptools.package-data]
+wolfs_screen_hitter = ["py.typed"]

@@ -1,0 +1,35 @@
+{
+  "name": "Faixa de cor exata",
+  "detector": "shape",
+  "window": {
+    "title": null
+  },
+  "region": {
+    "mode": "fixed",
+    "left": 0,
+    "top": 0,
+    "width": 1920,
+    "height": 1080
+  },
+  "target": {
+    "hsv_min": [0, 140, 140],
+    "hsv_max": [12, 255, 255],
+    "size": {
+      "min": 30,
+      "max": 400
+    },
+    "aspect": {
+      "min": 0.5,
+      "max": 2.0
+    },
+    "fill": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "work_scale": 0.5
+  },
+  "pointer": {
+    "mode": "smooth",
+    "duration": 0.16
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Letra ou simbolo (template)",
+  "detector": "template",
+  "window": {
+    "title": null,
+    "min_width": 200,
+    "min_height": 200
+  },
+  "region": {
+    "mode": "window",
+    "margin": 0
+  },
+  "target": {
+    "template": "templates/letra.png",
+    "threshold": 0.8,
+    "scale_min": 0.5,
+    "scale_max": 2.0,
+    "scale_steps": 12,
+    "work_scale": 1.0,
+    "invert": false
+  },
+  "pointer": {
+    "mode": "teleport"
+  }
+}
