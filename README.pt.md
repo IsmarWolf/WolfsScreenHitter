@@ -293,7 +293,7 @@ O fluxo é sempre o mesmo: copie um perfil de exemplo, ajuste o `target`, teste 
 }
 ```
 
-**Cor viva.** Cores fortes são descartadas por `bright` e por `dark` porque têm saturação alta. Use uma faixa HSV da tabela acima. Copie `profiles/faixa_hsv.json`, que já usa vermelho, e troque os dois trios.
+**Cor viva.** Pixel saturado não é `bright` nem `dark` a não ser que o perfil limite o `s_max`, e o padrão do código, `255`, não limita nada. Use uma faixa HSV da tabela acima. Copie `profiles/faixa_hsv.json`, que já usa vermelho, e troque os dois trios. Esse perfil também vem com `region.mode` em `fixed` num retângulo de `1920x1080`, então troque para `screen` a não ser que você queira mesmo um retângulo fixo.
 
 **Não redondo.** Ajuste `aspect` e espere que o `fill` aceite a forma. Um losango ou um triângulo costuma passar com `aspect` entre `0.5` e `2.0` e `fill` de `0.2` a `0.6`. Se for um retângulo cheio, suba o teto do `fill` para `1.0`.
 

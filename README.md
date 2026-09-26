@@ -292,7 +292,7 @@ The loop is always the same: copy a profile, adjust `target`, test with `check -
 }
 ```
 
-**Vivid colour.** Strong colours are rejected by `bright` and by `dark` because they are highly saturated. Use an HSV range from the table above. Copy `profiles/faixa_hsv.json`, which already uses red, and swap the two triples.
+**Vivid colour.** A saturated pixel is neither `bright` nor `dark` unless the profile caps `s_max` low, and the code default of `255` caps nothing. Use an HSV range from the table above. Copy `profiles/faixa_hsv.json`, which already uses red, and swap the two triples. That profile also ships with `region.mode` set to `fixed` at `1920x1080`, so change it to `screen` unless you really do want a hard rectangle.
 
 **Not round.** Adjust `aspect` and let `fill` accept the shape. A diamond or a triangle usually passes with `aspect` between `0.5` and `2.0` and `fill` from `0.2` to `0.6`. For a solid rectangle, raise the `fill` ceiling to `1.0`.
 
