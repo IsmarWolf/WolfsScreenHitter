@@ -1,53 +1,55 @@
 # WolfsScreenHitter
 
-Aponta o cursor do mouse para um **alvo visual na tela**, encontrado em tempo real por cor ou por imagem de referência. O clique é sempre seu: o programa só posiciona o cursor, nunca clica.
+[English](README.md) | [Português](README.pt.md)
 
-Duas formas de reconhecer o alvo, ambas configuráveis por um arquivo JSON:
+Points your mouse cursor at a **visual target on screen**, found in real time by colour or by a reference image. The click is always yours: the program only positions the cursor, it never clicks.
 
-- **`shape`** — acha blobs de uma cor com formato próximo de um círculo. Serve para alvos coloridos, contornos, botões, indicadores.
-- **`template`** — localize a imagem de uma letra, símbolo, ícone ou número usando correspondência de template em várias escalas. Serve para ler texto na tela.
+Two ways to recognise the target, both configured through a JSON file:
 
-Roda em Windows, com o alvo em qualquer área que você escolher: janela específica, área central dessa janela, tela inteira, monitor virtual ou um retângulo fixo.
+- **`shape`** — finds blobs of a colour whose shape is close to a circle. Good for coloured targets, outlines, buttons, indicators.
+- **`template`** — locates the image of a letter, symbol, icon or number using multi-scale template matching. Good for reading text on screen.
 
-## Testes
+Runs on Windows, with the target anywhere you choose: a specific window, the central area of that window, the whole screen, the virtual desktop, or a fixed rectangle.
 
-Dois scripts, sem framework extra. Nenhum dos dois mexe no seu mouse por padrão: as partes que movem o cursor são opt-in.
+## Tests
 
-O primeiro é seguro para rodar a qualquer momento:
+Two scripts, no extra framework. Neither one touches your mouse by default: the parts that move the cursor are opt-in.
+
+The first is safe to run at any time:
 
 ```bash
 python tests/test_local.py
 ```
 
-Verifica de forma offline que não existe nenhuma chamada de clique no pacote, que `pyautogui` não é dependência, que os perfis carregam e que detectores, regiões e modos de movimento se comportam. Termina sozinho, com uma linha por verificação.
+It checks offline that the package contains no click calls, that `pyautogui` is not a dependency, that the profiles load, and that detectors, regions and movement modes behave. It finishes on its own, printing one line per check.
 
-O segundo mexe no seu mouse e foca uma janela por alguns segundos, então ele não faz nada sem a flag:
+The second one moves your mouse and focuses a window for a few seconds, so it does nothing without the flag:
 
 ```bash
 python tests/test_e2e.py --executar
 ```
 
-Faz o teste de verdade: cria uma cena com um anel claro e um anel vermelho, abre no visualizador do Windows, captura a tela real por DXGI, confirma que detectou o anel claro e ignorou o vermelho, e move o cursor para o centro do alvo.
+This is the real test: it builds a scene with a light ring and a red ring, opens it in the Windows viewer, captures the real screen over DXGI, confirms it detected the light ring and ignored the red one, and moves the cursor to the centre of the target.
 
-As duas verificações de movimento do `test_local.py` também são opt-in:
+The two movement checks in `test_local.py` are opt-in as well:
 
 ```bash
 python tests/test_local.py --executar
 ```
 
-Sem a flag elas aparecem como `[pulado]`, e o resto continua sendo verificado. Use `--executar` quando não estiver digitando, porque o cursor vai saltar pela tela.
+Without the flag they show up as `[skipped]`, and everything else is still verified. Use `--executar` when you are not typing, because the cursor will jump around the screen.
 
-## O que o programa não faz
+## What this program does not do
 
-- Não clica. Não existe nenhuma chamada de botão no código, e há um teste que garante isso.
-- Não digita nada.
-- Não envia eventos de rede nem lê nada fora da área que você definiu.
+- It does not click. There is no button call anywhere in the code, and a test enforces that.
+- It does not type anything.
+- It does not send network events, and it reads nothing outside the area you configured.
 
-Se você precisa de clique automático, este não é o projeto certo.
+If you need automatic clicking, this is the wrong project.
 
-## Instalação
+## Installation
 
-Requer Python 3.10 ou superior.
+Requires Python 3.10 or newer.
 
 ```bash
 git clone https://github.com/IsmarWolf/WolfsScreenHitter.git
@@ -57,93 +59,93 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Opcionalmente, para ter o comando `wolfs-screen-hitter` disponível:
+Optionally, to get the `wolfs-screen-hitter` command available:
 
 ```bash
 pip install -e .
 ```
 
-## Uso rápido
+## Quick start
 
 ```bash
-# ver o que existe
+# see what is available
 python -m wolfs_screen_hitter list-profiles
 python -m wolfs_screen_hitter list-windows
 
-# testar a detecção sem mexer no mouse (sempre comece aqui)
+# test the detection without touching the mouse (always start here)
 python -m wolfs_screen_hitter check profiles/circulo_claro.json --debug out/debug.png
 
-# seguir o alvo de verdade
+# follow the target for real
 python -m wolfs_screen_hitter run profiles/circulo_claro.json
 ```
 
-Pare com **Esc**, **F12**, ou deixando o mouse parado no canto superior esquerdo por um segundo.
+Stop with **Esc**, **F12**, or by leaving the mouse parked in the top-left corner for a second.
 
-O comando `check` é o mais útil para ajustar um perfil: ele diz se achou, onde está, e salva uma imagem com a caixa destacada para você ver o que o detector enxergou.
+The `check` command is the most useful one when tuning a profile: it tells you whether it found anything, where it is, and saves an image with the box drawn on it so you can see what the detector saw.
 
-## Funciona em qualquer tela
+## It works on any screen
 
-O programa não sabe, e não precisa saber, qual programa é o seu alvo. Ele não procura por nome de jogo, nem por janela específica, a menos que você peça. Por padrão o perfil `circulo_claro.json` varre a tela inteira e reconhece o alvo pelo formato e pela cor.
+The program does not know, and does not need to know, which program is your target. It does not look for a game name or a specific window unless you ask it to. By default the `circulo_claro.json` profile sweeps the whole screen and recognises the target by shape and colour.
 
-Isso significa que a mesma configuração serve para um jogo, um vídeo, um gráfico, uma planilha, um PDF ou qualquer outra coisa que desenhe um alvo na tela. O que o detector enxerga são pixels, não aplicativos.
+That means the same configuration works for a game, a video, a chart, a spreadsheet, a PDF, or anything else that draws a target on screen. What the detector sees is pixels, not applications.
 
-### Escolhendo onde procurar
+### Choosing where to look
 
-Tudo é o bloco `region`. Quatro opções, e elas se trocam sem mudar mais nada:
+It is all the `region` block. Four options, and you swap between them without changing anything else:
 
-| `mode` | Onde olha | Quando usar |
+| `mode` | Where it looks | When to use |
 |---|---|---|
-| `screen` | A tela primária inteira | Padrão. Serve para a maioria dos casos. |
-| `virtual` | Todos os monitores ao mesmo tempo | Alvo em outro monitor, ou mais de um monitor. |
-| `window` | Só a janela de `window.title` | Muita coisa na tela se parece com o alvo. |
-| `fixed` | Um retângulo que você escolhe | Você sabe exatamente onde o alvo aparece. |
+| `screen` | The entire primary screen | The default. Works for most cases. |
+| `virtual` | All monitors at once | Target on another monitor, or more than one monitor. |
+| `window` | Only the window named by `window.title` | A lot on screen resembles the target. |
+| `fixed` | A rectangle you choose | You know exactly where the target appears. |
 
-Para usar em **qualquer monitor**, troque para o desktop inteiro:
+To use **any monitor**, switch to the whole desktop:
 
 ```json
 "region": { "mode": "virtual" }
 ```
 
-Para usar **só numa janela**, aponte pelo título e descarte as bordas com a margem:
+To use **only one window**, target it by title and discard the edges with the margin:
 
 ```json
-"window": { "title": "MeuPrograma" },
+"window": { "title": "MyProgram" },
 "region": { "mode": "window", "margin": 130 }
 ```
 
-Para fixar **um lugar exato**, use coordenadas:
+To pin down **an exact spot**, use coordinates:
 
 ```json
 "region": { "mode": "fixed", "left": 640, "top": 300, "width": 640, "height": 480 }
 ```
 
-### A diferença que importa: janela ou tela toda
+### The difference that matters: window or whole screen
 
-Escolher `screen` é o mais fácil e o mais abrangente, mas tem uma consequência: o detector vê **tudo que estiver visível**, incluindo a interface dos seus próprios programas. Se você tem um ícone claro e redondo no canto da tela, ele é um candidato tão válido quanto o alvo de verdade, e o detector vai escolher o maior.
+Choosing `screen` is the easiest and most broad, but it has a consequence: the detector sees **everything that is visible**, including the interface of your own programs. If you have a light round icon in the corner of the screen, it is just as valid a candidate as the real target, and the detector will pick the largest one.
 
-Quando isso acontecer, estreite a busca. O `margin` é a ferramenta certa: ela apaga uma faixa em volta da janela, jogando fora ícones, botões e barras de status que ficam nas bordas.
+When that happens, narrow the search. `margin` is the right tool: it erases a band around the window, discarding the icons, buttons and status bars that sit near the edges.
 
-Como descobrir a margem certa para o seu caso: comece em `0`, rode o `check` com `--debug`, e olhe onde a caixa verde caiu. Se caiu em um ícone da borda, aumente a margem até o suficiente para cortar aquele ícone. Se a caixa someu junto com o alvo, diminua.
+How to find the right margin for your case: start at `0`, run `check` with `--debug`, and look at where the green box landed. If it landed on an edge icon, raise the margin until that icon is cut off. If the box disappeared along with the target, lower it.
 
-Para descobrir o título exato da janela, rode `list-windows` e copie o nome que aparece.
+To find the exact window title, run `list-windows` and copy the name that shows up.
 
-### Um detalhe sobre o que está visível
+### One detail about what is visible
 
-O detector trabalha no que a câmera de tela enxerga, ou seja, o que está **desenhado na tela**. Se outra janela estiver por cima do alvo, o alvo não existe para o detector. Isso não é defeito: é o que qualquer captura de tela faz.
+The detector works on what the screen camera sees, which is what is **drawn on screen**. If another window is on top of the target, the target does not exist as far as the detector is concerned. This is not a defect: it is what any screen capture does.
 
-Se você usa o modo `tela` e o alvo some do nada, geralmente é porque o seu navegador, terminal ou editor passou para a frente. Nesse caso, `window` é o modo certo.
+If you use the `screen` mode and the target vanishes for no reason, it is usually because your browser, terminal or editor came to the front. In that case `window` is the right mode.
 
-## Como ajustar um perfil para o seu alvo
+## Tuning a profile for your target
 
-O fluxo sempre é o mesmo: copia um perfil de exemplo, ajusta o `target`, testa com `check` olhando o `--debug`, repete. Você nunca precisa mexer em Python.
+The flow is always the same: copy one of the example profiles, adjust the `target`, test with `check` looking at the `--debug` image, repeat. You never need to touch Python.
 
-### Se o alvo é claro e redondo
+### If the target is light and round
 
-Copie `profiles/circulo_claro.json`. Esse é o caso mais comum e já vem pronto.
+Copy `profiles/circulo_claro.json`. This is the most common case and it is ready as is.
 
-### Se o alvo é escuro
+### If the target is dark
 
-Troque `bright` por `dark`. O `v_max` é o brilho máximo, então um alvo preto sobre fundo claro usa algo entre `40` e `90`:
+Replace `bright` with `dark`. `v_max` is the maximum brightness, so a black target on a light background uses something between `40` and `90`:
 
 ```json
 "target": {
@@ -154,100 +156,100 @@ Troque `bright` por `dark`. O `v_max` é o brilho máximo, então um alvo preto 
 }
 ```
 
-### Se o alvo tem uma cor viva
+### If the target has a vivid colour
 
-Cores fortes são descartadas por `bright` e por `dark` porque têm saturação alta. Use uma faixa HSV. Os valores são `[matiz, saturação, valor]`, e o matiz vai de 0 a 179 no OpenCV:
+Strong colours are rejected by `bright` and by `dark` because they are highly saturated. Use an HSV range instead. The values are `[hue, saturation, value]`, and hue runs from 0 to 179 in OpenCV:
 
-| Cor | `hsv_min` | `hsv_max` |
+| Colour | `hsv_min` | `hsv_max` |
 |---|---|---|
-| Vermelho | `[0, 140, 140]` | `[10, 255, 255]` |
-| Laranja/amarelo | `[11, 140, 140]` | `[30, 255, 255]` |
-| Verde | `[35, 90, 90]` | `[85, 255, 255]` |
-| Azul | `[100, 90, 90]` | `[130, 255, 255]` |
-| Roxo | `[130, 90, 90]` | `[160, 255, 255]` |
-| Rosa | `[160, 90, 140]` | `[179, 255, 255]` |
+| Red | `[0, 140, 140]` | `[10, 255, 255]` |
+| Orange/yellow | `[11, 140, 140]` | `[30, 255, 255]` |
+| Green | `[35, 90, 90]` | `[85, 255, 255]` |
+| Blue | `[100, 90, 90]` | `[130, 255, 255]` |
+| Purple | `[130, 90, 90]` | `[160, 255, 255]` |
+| Pink | `[160, 90, 140]` | `[179, 255, 255]` |
 
-Copie `profiles/faixa_hsv.json`, que já usa vermelho, e troque os dois trios.
+Copy `profiles/faixa_hsv.json`, which already uses red, and swap the two triples.
 
-Para descobrir o matiz de um pixel, use a captura que o próprio programa gravou:
-
-```bash
-python -m wolfs_screen_hitter capture captura.png
-python -m wolfs_screen_hitter crop captura.png matiz.png 640 300 1 1
-```
-
-Um `1x1` de um ponto do alvo. Depois leia o tri HSV com o Python:
+To find the hue of a pixel, use a screenshot the program itself took:
 
 ```bash
-python -c "import cv2; print(cv2.cvtColor(cv2.imread('matiz.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
+python -m wolfs_screen_hitter capture screenshot.png
+python -m wolfs_screen_hitter crop screenshot.png hue.png 640 300 1 1
 ```
 
-### Se o alvo não é redondo
+That is a `1x1` crop of a point on the target. Then read the HSV triple with Python:
 
-Ajuste `aspect` e espere que o `fill` aceite a forma. Um losango ou um triângulo costuma passar com `aspect` entre `0.5` e `2.0` e `fill` de `0.2` a `0.6`. Se for um retângulo cheio, suba o teto do `fill` para `1.0`.
+```bash
+python -c "import cv2; print(cv2.cvtColor(cv2.imread('hue.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
+```
 
-### Se o alvo é uma letra, número ou ícone
+### If the target is not round
 
-Use o detector `template` em vez do `shape`. O passo a passo completo está em [Como detectar uma letra ou símbolo](#como-detectar-uma-letra-ou-símbolo).
+Adjust `aspect` and let `fill` accept the shape. A diamond or a triangle usually passes with `aspect` between `0.5` and `2.0` and `fill` from `0.2` to `0.6`. If it is a solid rectangle, raise the `fill` ceiling to `1.0`.
 
-## Receitas para os problemas comuns
+### If the target is a letter, number or icon
 
-Estes são os ajustes que resolvem quase tudo. Sempre comece testando com `check --debug` antes de mudar qualquer número.
+Use the `template` detector instead of `shape`. The complete walkthrough is in [Detecting a letter or symbol](#detecting-a-letter-or-symbol).
 
-**Não acha nada, e eu sei que o alvo está na tela**
+## Recipes for common problems
 
-Quase sempre é o `work_scale` removendo o alvo. Se o alvo tem menos de uns 40 px, baixe para `0.35` ou coloque `1.0`. Se o alvo é pequeno por natureza, baixe também o `size.min`.
+These are the adjustments that fix almost everything. Always start by testing with `check --debug` before changing any number.
 
-**Acha, mas a caixa cai no lugar errado**
+**It finds nothing, and I know the target is on screen**
 
-Baixe o teto do `fill` para descartar blocos sólidos, ou suba `aspect` para descartar barras e faixas. Se o alvo verdadeiro é menor que o falso positivo, o detector escolhe o maior por padrão, então aperte o `size.max`.
+Almost always the `work_scale` is removing the target. If the target is smaller than about 40 px, drop it to `0.35` or set `1.0`. If the target is small by nature, lower `size.min` as well.
 
-**Acha um ícone ou botão da interface**
+**It finds something, but the box lands in the wrong place**
 
-Não mexa no `target`, mexa no `region`. Use `mode: "window"` com `margin`, ou `mode: "fixed"` limitando a área.
+Lower the `fill` ceiling to discard solid blocks, or raise the `aspect` limits to discard bars and strips. If the real target is smaller than the false positive, remember the detector picks the largest by default, so tighten `size.max`.
 
-**Acha o alvo mas o cursor não vai até ele**
+**It picks up an icon or a UI button**
 
-Isso é o programa de destino ignorando movimento instantâneo. Troque `"mode": "teleport"` por `"mode": "smooth"`.
+Do not touch `target`, touch `region`. Use `mode: "window"` with a `margin`, or `mode: "fixed"` to limit the area.
 
-**O alvo pisca e o programa parece perder ele**
+**It finds the target but the cursor does not go there**
 
-Normal. O laço só age quando há detecção. Se quiser suavizar, reduza o `work_scale` para `0.35`: imagem menor significa menos ruído e mais chance de acertar em quadros intermediários.
+The destination program is ignoring instant movement. Switch `"mode": "teleport"` to `"mode": "smooth"`.
 
-**A janela do alvo tem bordas ou barras que atrapalham**
+**The target flickers and the program seems to lose it**
 
-Use `margin`. Comece em `0` e aumente aos poucos, conferindo no `--debug` a cada passo.
+Normal. The loop only acts when there is a detection. To smooth it out, reduce `work_scale` to `0.35`: a smaller image means less noise and a better chance of hitting on intermediate frames.
 
-**Está lento em monitor grande**
+**The target window has edges or bars in the way**
 
-Baixe o `work_scale` para `0.35`, ou troque `screen` por `window` com margem, que captura bem menos pixels.
+Use `margin`. Start at `0` and raise it little by little, checking the `--debug` image at each step.
 
-**Quero o cursor mais rápido ou mais lento no `smooth`**
+**It is slow on a large monitor**
 
-`duration` é o tempo total do movimento, em segundos. `0.08` é rápido, `0.30` é devagar e discreto. `jitter` é o tremor, em pixels.
+Drop `work_scale` to `0.35`, or switch `screen` to `window` with a margin, which captures far fewer pixels.
 
-## Como funciona
+**I want the cursor faster or slower in `smooth` mode**
+
+`duration` is the total movement time in seconds. `0.08` is fast, `0.30` is slow and discreet. `jitter` is the tremor amplitude, in pixels.
+
+## How it works
 
 ```
 wolfs_screen_hitter/
-  win.py        acessos ao Win32: cursor, teclas, envio de movimento
-  capture.py    captura de tela (DXGI, com queda para mss)
-  windows.py    enumeração de janelas e resolução da região de busca
-  detect.py     os dois detectores: forma por cor e template
-  profiles.py   leitura e validação dos perfis JSON
-  pointer.py    modos de movimento do cursor
-  app.py        loop principal e comandos de linha
+  win.py        Win32 access: cursor, keys, movement dispatch
+  capture.py    screen capture (DXGI, falling back to mss)
+  windows.py    window enumeration and search-region resolution
+  detect.py     the two detectors: shape by colour and template
+  profiles.py   loading and validation of JSON profiles
+  pointer.py    cursor movement modes
+  app.py        main loop and command line
 ```
 
-O ciclo é: capturar a região → detectar → mover o cursor → repetir. A captura DXGI leva cerca de 2 ms e a detecção alguns milissegundos, o que dá mais de cem quadros por segundo na captura de tela inteira.
+The cycle is: capture the region → detect → move the cursor → repeat. DXGI capture takes about 2 ms and detection a few more milliseconds, which gives over a hundred frames per second on a full-screen capture.
 
-## Perfis
+## Profiles
 
-Um perfil é um JSON que descreve **o que procurar, onde procurar e como reagir**.
+A profile is a JSON file that describes **what to look for, where to look, and how to react**.
 
-### O perfil mínimo
+### The minimal profile
 
-Na maioria dos casos, tudo que você precisa é isto:
+Most of the time this is all you need:
 
 ```json
 {
@@ -261,19 +263,19 @@ Na maioria dos casos, tudo que você precisa é isto:
 }
 ```
 
-Sem `window`, sem nome de programa: o detector varre a tela e acha qualquer alvo claro e redondo que esteja visível. É o perfil mais genérico possível, e é o que resolve a maioria dos casos.
+No `window`, no program name: the detector sweeps the screen and finds any light round target that is visible. It is the most generic profile possible, and it is what solves most cases.
 
-### Estrutura completa
+### Full structure
 
-Todos os campos, com os valores padrão que valem quando você omite:
+Every field, with the default value that applies when you omit it:
 
 ```json
 {
-  "name": "Meu alvo",
+  "name": "My target",
   "detector": "shape",
 
   "window": {
-    "title": "MeuPrograma",
+    "title": "MyProgram",
     "min_width": 200,
     "min_height": 200
   },
@@ -296,91 +298,91 @@ Todos os campos, com os valores padrão que valem quando você omite:
 }
 ```
 
-### `region` — onde procurar
+### `region` — where to look
 
-| `mode` | Significado |
+| `mode` | Meaning |
 |---|---|
-| `window` | Área da janela de `window.title`. Use `margin` para descartar as bordas. |
-| `screen` | Tela primária inteira. |
-| `virtual` | Todos os monitores juntos. |
-| `fixed` | Retângulo fixo, com `left`, `top`, `width`, `height`. |
+| `window` | The area of the `window.title` window. Use `margin` to discard the edges. |
+| `screen` | The entire primary screen. |
+| `virtual` | All monitors together. |
+| `fixed` | A fixed rectangle, with `left`, `top`, `width`, `height`. |
 
-O `margin` é o truque mais útil: muitos programas desenham ícones perto das bordas, e `margin: 130` tira eles da consideração.
+`margin` is the most useful trick: many programs draw icons near the edges, and `margin: 130` takes them out of consideration.
 
-### `target` — o que é o alvo
+### `target` — what the target is
 
-Dois jeitos de descrever a cor:
+Two ways to describe the colour:
 
 ```json
 "bright": { "v_min": 150, "s_max": 110 }
 ```
 
-acha pixels claros e pouco saturados. `v_min` é o brilho mínimo, `s_max` é a saturação máxima. Um `s_max` baixo exclui vermelho e verde fortes, então essa combinação acha branco, cinza e bege sem pegar cor viva.
+finds light, weakly saturated pixels. `v_min` is the minimum brightness, `s_max` the maximum saturation. A low `s_max` excludes strong red and green, so this combination finds white, grey and beige without catching vivid colour.
 
 ```json
 "dark": { "v_max": 80, "s_max": 120 }
 ```
 
-acha pixels escuros. Dá para usar `bright` e `dark` juntos: o alvo passa a ser a união dos dois.
+finds dark pixels. You can use `bright` and `dark` together: the target becomes the union of the two.
 
 ```json
 "hsv_min": [0, 140, 140],
 "hsv_max": [12, 255, 255]
 ```
 
-escolhe uma faixa exata de matiz, saturação e valor. `hsv_min` e `hsv_max` substituem `bright`/`dark` quando presentes. Útil para uma cor específica, por exemplo vermelho vivo: matiz de 0 a 12.
+picks an exact range of hue, saturation and value. `hsv_min` and `hsv_max` replace `bright`/`dark` when present. Useful for a specific colour, for instance vivid red: hue from 0 to 12.
 
-Os filtros de forma:
+The shape filters:
 
-| Campo | O que restringe |
+| Field | What it restricts |
 |---|---|
-| `size` | Lado do alvo em pixels, de `min` a `max`. |
-| `aspect` | Razão entre largura e altura. `1.0` é um quadrado, `0.5` é duas vezes mais largo que alto. |
-| `fill` | Fração da caixa preenchida por pixels do alvo. Um contorno fino fica perto de `0.1`; um bloco sólido fica perto de `1.0`. É o filtro que separa um anel de um retângulo. |
-| `area_min` | Área mínima em pixels, para descartar ruído. |
-| `work_scale` | Redução da imagem antes de procurar. `0.5` acelera bastante e ainda acha alvos de 40 px ou mais. |
+| `size` | Side of the target in pixels, from `min` to `max`. |
+| `aspect` | Ratio between width and height. `1.0` is a square, `0.5` is twice as wide as tall. |
+| `fill` | Fraction of the box filled with target pixels. A thin outline sits near `0.1`; a solid block sits near `1.0`. This is the filter that separates a ring from a rectangle. |
+| `area_min` | Minimum area in pixels, to discard noise. |
+| `work_scale` | Downscale applied to the image before searching. `0.5` speeds things up a lot and still finds targets of 40 px or more. |
 
-Quando mais de um candidato passa nos filtros, vence o **maior**.
+When more than one candidate passes the filters, the **largest** one wins.
 
-### `pointer` — como o cursor se move
+### `pointer` — how the cursor moves
 
-| `mode` | Comportamento |
+| `mode` | Behaviour |
 |---|---|
-| `teleport` | Vai direto para o centro. É o padrão, e o mais rápido. |
-| `smooth` | Percorre um caminho curvo, com tremor e passos irregulares, como uma mão. Use quando o programa de destino ignorar movimento instantâneo. |
+| `teleport` | Goes straight to the centre. This is the default and the fastest. |
+| `smooth` | Follows a curved path, with tremor and irregular steps, like a hand. Use it when the destination program ignores instant movement. |
 
-Para `smooth` você pode ajustar `duration` (em segundos) e `jitter` (amplitude do tremor, em pixels).
+For `smooth` you can adjust `duration` (in seconds) and `jitter` (tremor amplitude, in pixels).
 
-## Como detectar uma letra ou símbolo
+## Detecting a letter or symbol
 
-O detector `template` funciona com uma imagem de referência. O fluxo completo:
+The `template` detector works with a reference image. The complete flow:
 
-**1. Tire uma captura da tela com o alvo visível**
+**1. Take a screenshot with the target visible**
 
 ```bash
-python -m wolfs_screen_hitter capture captura.png
+python -m wolfs_screen_hitter capture screenshot.png
 ```
 
-**2. Recorte só a letra ou símbolo**
+**2. Crop just the letter or symbol**
 
-Use as coordenadas da captura. O comando já mostra o tamanho da imagem:
+Use the coordinates from the screenshot. The command already prints the image size:
 
 ```bash
-python -m wolfs_screen_hitter crop captura.png profiles/templates/alvo.png 640 300 48 52
+python -m wolfs_screen_hitter crop screenshot.png profiles/templates/target.png 640 300 48 52
 ```
 
-Isso salva um recorte `48x52` daquele ponto. Guarde o original, porque ele é a captura de tela, e o recorte é o template.
+That saves a `48x52` crop from that point. Keep the original, because that one is the screenshot, and the crop is the template.
 
-**3. Aponte um perfil para o template**
+**3. Point a profile at the template**
 
 ```json
 {
-  "name": "Letra alvo",
+  "name": "Target letter",
   "detector": "template",
   "window": { "title": null },
   "region": { "mode": "window", "margin": 0 },
   "target": {
-    "template": "templates/alvo.png",
+    "template": "templates/target.png",
     "threshold": 0.8,
     "scale_min": 0.5,
     "scale_max": 2.0,
@@ -392,74 +394,74 @@ Isso salva um recorte `48x52` daquele ponto. Guarde o original, porque ele é a 
 }
 ```
 
-O caminho do template é relativo ao arquivo do perfil, então dá para manter os templates em `profiles/templates/`.
+The template path is relative to the profile file, so you can keep templates in `profiles/templates/`.
 
-**4. Teste antes de usar**
+**4. Test before using it**
 
 ```bash
 python -m wolfs_screen_hitter check profiles/letra_template.json --debug out/debug.png
 ```
 
-### Ajustando o template
+### Tuning the template
 
-| Campo | Efeito |
+| Field | Effect |
 |---|---|
-| `threshold` | Semelhança mínima para aceitar, de 0 a 1. Comece em `0.8`. Baixe para `0.7` se não achar. Suba para `0.9` se estiver pegando o lugar errado. |
-| `scale_min` / `scale_max` | Faixa de tamanhos a testar. Se o alvo na tela é maior ou menor que o recorte, amplie a faixa. |
-| `scale_steps` | Quantos tamanhos são testados dentro da faixa. Mais passos, mais chance e mais custo. |
-| `work_scale` | Redução para acelerar. Com `0.5`, a tolerância a ruído cai. |
-| `invert` | Inverte a escala de cinza dos dois lados. Use quando o alvo for escuro sobre fundo claro e o `threshold` não passar. |
+| `threshold` | Minimum similarity to accept, from 0 to 1. Start at `0.8`. Drop to `0.7` if it finds nothing. Raise to `0.9` if it keeps landing in the wrong place. |
+| `scale_min` / `scale_max` | Range of sizes to test. If the target on screen is bigger or smaller than the crop, widen the range. |
+| `scale_steps` | How many sizes are tested inside the range. More steps means more chance and more cost. |
+| `work_scale` | Downscale for speed. At `0.5`, noise tolerance drops. |
+| `invert` | Inverts the greyscale on both sides. Use it when the target is dark on a light background and `threshold` is not passing. |
 
-### Dicas para templates que não funcionam
+### Tips for templates that do not work
 
-- **Corte justo.** Sobras de fundo no template pioram a correspondência. Encoste nas bordas do glifo.
-- **Fundo parecido com o da tela.** Se o template tem fundo branco e a tela é escura, use `invert: true` ou tire o fundo do recorte.
-- **Escala conta.** Se o alvo na tela tem o dobro do tamanho do recorte, ponha `scale_min: 1.5`.
-- **Palavras não são um alvo só.** Faça um template por letra, ou por símbolo, e um perfil para cada. O detector devolve sempre a melhor correspondência da imagem que você deu.
-- **Vários alvos iguias na tela.** O detector devolve sempre a maior pontuação. Se você precisa de um alvo específico, recorte a região em `region.fixed` para fechar o resto da tela.
+- **Crop tightly.** Leftover background in the template makes the match worse. Go right up to the glyph edges.
+- **Background similar to the screen.** If the template has a white background and the screen is dark, use `invert: true` or remove the background from the crop.
+- **Scale matters.** If the target on screen is twice the size of the crop, set `scale_min: 1.5`.
+- **Words are not a single target.** Make one template per letter or symbol, and one profile for each. The detector always returns the best match for the image you gave it.
+- **Several identical targets on screen.** The detector always returns the highest score. If you need one specific target, narrow the search area with `region.fixed`.
 
-## Quando o `shape` é melhor que o `template`
+## When `shape` beats `template`
 
-Use `shape` quando o alvo é uma **cor** e o formato não importa muito. É mais rápido e mais estável, porque não depende de template exato nem de escala.
+Use `shape` when the target is a **colour** and the shape does not matter much. It is faster and more stable, because it does not depend on an exact template or scale.
 
-Use `template` quando o que identifica o alvo é a **forma ou o texto**, e a cor pode variar.
+Use `template` when what identifies the target is the **shape or the text**, and the colour may vary.
 
-## Solução de problemas
+## Troubleshooting
 
-**`check` diz que não achou nada**
+**`check` says it found nothing**
 
-Grave o debug e veja o que o detector enxerga:
+Save the debug image and look at what the detector saw:
 
 ```bash
-python -m wolfs_screen_hitter check profiles/meu.json --debug out/debug.png
+python -m wolfs_screen_hitter check profiles/mine.json --debug out/debug.png
 ```
 
-Se a caixa verde não aparece, o alvo não passou nos filtros. Alimente `size`, afrouxe `aspect`, aumente `fill` e cheque se `bright`/`dark` descrevem bem a cor.
+If the green box does not appear, the target did not pass the filters. Widen `size`, loosen `aspect`, raise `fill`, and check that `bright`/`dark` describe the colour well.
 
-**Achei o lugar errado**
+**It found the wrong place**
 
-Geralmente é um elemento de interface parecido. Restrinja a região com `region.margin`, ou reduza `fill` se o alvo verdadeiro é mais fino que o falso positivo.
+Usually it is a similar-looking interface element. Restrict the region with `region.margin`, or lower `fill` if the real target is thinner than the false positive.
 
-**O cursor não se move**
+**The cursor does not move**
 
-Confira a saída de `list-windows` e o `title` no perfil. Títulos só precisam bater parcialmente: `"title": "Paint"` acha `"Paint - imagem.png"`.
+Check the `list-windows` output and the `title` in your profile. Titles only need to match partially: `"title": "Paint"` finds `"Paint - picture.png"`.
 
-**O alvo aparece em varios lugares**
+**The target appears in several places**
 
-`template` devolve sempre a melhor pontuação. Feche a área de busca com `region.fixed` para isolar.
+`template` always returns the best score. Close the search area down with `region.fixed` to isolate it.
 
-**Está lento**
+**It is slow**
 
-Aumente `work_scale` para `0.35` no perfil `shape`, ou reduza `scale_steps` no `template`. A captura DXGI é rápida; o custo está na detecção.
+Raise `work_scale` to `0.35` in the `shape` profile, or lower `scale_steps` in the `template` one. DXGI capture is fast; the cost is in the detection.
 
-**O programa alvo ignora o movimento do cursor**
+**The target program ignores the cursor movement**
 
-Troque `"mode": "teleport"` por `"mode": "smooth"`. Alguns programas registram apenas eventos de movimento encadeados.
+Switch `"mode": "teleport"` to `"mode": "smooth"`. Some programs only register chained movement events.
 
-## Privacidade
+## Privacy
 
-Tudo roda local. Nenhuma informação sai da máquina, e a captura fica restrita à região que você configurou no perfil.
+Everything runs locally. No information leaves your machine, and the capture is restricted to the region you configured in the profile.
 
-## Licença
+## License
 
-MIT. Veja [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
