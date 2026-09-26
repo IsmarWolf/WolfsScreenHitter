@@ -3,8 +3,12 @@
 Cria uma imagem de teste com um anel claro e um anel vermelho, abre no
 visualizador padrao do Windows, detecta pela captura DXGI, confirma que o
 vermelho foi ignorado e move o cursor de verdade. Fecha tudo ao final.
+
+Isto mexe no seu mouse e foca uma janela, entao e opt-in: rode com
+--executar. Sem a flag, o script nao faz nada.
 """
 
+import argparse
 import ctypes
 import json
 import math
@@ -22,6 +26,22 @@ from wolfs_screen_hitter import detect, pointer, windows
 from wolfs_screen_hitter.capture import ScreenCapture
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--executar",
+    action="store_true",
+    help="confirma a execucao: o teste move o cursor e foca uma janela",
+)
+opcoes = parser.parse_args()
+
+if not opcoes.executar:
+    print(__doc__.strip())
+    print()
+    print("NADA FOI EXECUTADO. Para rodar de verdade:")
+    print(f"    python {pathlib.Path(__file__).name} --executar")
+    sys.exit(0)
+
 SAIDA = RAIZ / "out"
 SAIDA.mkdir(exist_ok=True)
 

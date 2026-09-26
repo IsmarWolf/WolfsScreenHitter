@@ -11,7 +11,9 @@ Roda em Windows, com o alvo em qualquer área que você escolher: janela especí
 
 ## Testes
 
-Dois scripts, sem framework extra:
+Dois scripts, sem framework extra. Nenhum dos dois mexe no seu mouse por padrão: as partes que movem o cursor são opt-in.
+
+O primeiro é seguro para rodar a qualquer momento:
 
 ```bash
 python tests/test_local.py
@@ -19,11 +21,21 @@ python tests/test_local.py
 
 Verifica de forma offline que não existe nenhuma chamada de clique no pacote, que `pyautogui` não é dependência, que os perfis carregam e que detectores, regiões e modos de movimento se comportam. Termina sozinho, com uma linha por verificação.
 
+O segundo mexe no seu mouse e foca uma janela por alguns segundos, então ele não faz nada sem a flag:
+
 ```bash
-python tests/test_e2e.py
+python tests/test_e2e.py --executar
 ```
 
-Faz o teste de verdade: cria uma cena com um anel claro e um anel vermelho, abre no visualizador do Windows, captura a tela real por DXGI, confirma que detectou o anel claro e ignorou o vermelho, e move o cursor para o centro do alvo. Este teste mexe no seu mouse e abre uma janela por alguns segundos.
+Faz o teste de verdade: cria uma cena com um anel claro e um anel vermelho, abre no visualizador do Windows, captura a tela real por DXGI, confirma que detectou o anel claro e ignorou o vermelho, e move o cursor para o centro do alvo.
+
+As duas verificações de movimento do `test_local.py` também são opt-in:
+
+```bash
+python tests/test_local.py --executar
+```
+
+Sem a flag elas aparecem como `[pulado]`, e o resto continua sendo verificado. Use `--executar` quando não estiver digitando, porque o cursor vai saltar pela tela.
 
 ## O que o programa não faz
 

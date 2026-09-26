@@ -1,5 +1,10 @@
-"""Verificacoes locais do pacote."""
+"""Verificacoes locais do pacote.
 
+Por padrao nada aqui mexe no seu mouse. As secoes que movem o cursor so
+rodam com --executar.
+"""
+
+import argparse
 import pathlib
 import subprocess
 import sys
@@ -13,7 +18,16 @@ import numpy as np
 from wolfs_screen_hitter import detect, pointer, profiles, windows
 from wolfs_screen_hitter.capture import ScreenCapture
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--executar",
+    action="store_true",
+    help="permite as secoes que movem o cursor de verdade",
+)
+opcoes = parser.parse_args()
+
 falhas = []
+pulados = []
 
 
 def checar(nome, condicao, detalhe=""):
@@ -21,6 +35,11 @@ def checar(nome, condicao, detalhe=""):
     print(f"  [{marca}] {nome}{(' -> ' + detalhe) if detalhe else ''}")
     if not condicao:
         falhas.append(nome)
+
+
+def pular(nome, motivo):
+    print(f"  [pulado] {nome} -> {motivo}")
+    pulados.append(nome)
 
 
 print("1. nenhuma chamada de clique no pacote")
@@ -68,14 +87,17 @@ checar("fixa", windows.resolve_region({"mode": "fixed", "left": 5, "top": 6, "wi
 checar("sem janela devolve None", windows.resolve_region({"mode": "window"}, None) is None)
 
 print("6. cursor em coordenadas exatas")
-inicio = pointer.position()
-ok = True
-for alvo in [(300, 400), (1500, 300), (960, 520)]:
-    pointer.move_to(*alvo)
-    time.sleep(0.05)
-    ok = ok and pointer.position() == alvo
-pointer.move_to(*inicio)
-checar("ida e volta exatas", ok)
+if opcoes.executar:
+    inicio = pointer.position()
+    ok = True
+    for alvo in [(300, 400), (1500, 300), (960, 520)]:
+        pointer.move_to(*alvo)
+        time.sleep(0.3)
+        ok = ok and pointer.position() == alvo
+    pointer.move_to(*inicio)
+    checar("ida e volta exatas", ok)
+else:
+    pular("ida e volta exatas", "mexeria no seu mouse; rode com --executar")
 
 print("7. detector de forma acha circulo claro e ignora vermelho")
 perfil = profiles.load("profiles/circulo_claro.json")
@@ -108,15 +130,19 @@ with ScreenCapture() as captura:
     checar("tamanho bate", abs(quadro.shape[1] - windows.screen()[2]) <= 2, f"{quadro.shape}")
 
 print("10. movimento smooth chega exato e percorre o caminho")
-inicio = pointer.position()
-alvo = (inicio[0] + 260, inicio[1] + 120)
-t0 = time.perf_counter()
-pointer.move_to_smooth(*alvo, duracao=0.12)
-decorrido = time.perf_counter() - t0
-checar("smooth termina no alvo exato", pointer.position() == alvo, str(pointer.position()))
-checar("smooth leva tempo (nao teleporta)", decorrido > 0.05, f"{decorrido:.3f}s")
-checar("modo do perfil honored", pointer.aplicar(inicio[0], inicio[1], {"mode": "smooth"}) is not None)
-pointer.move_to(*inicio)
+if opcoes.executar:
+    inicio = pointer.position()
+    alvo = (inicio[0] + 260, inicio[1] + 120)
+    t0 = time.perf_counter()
+    pointer.move_to_smooth(*alvo, duracao=0.12)
+    decorrido = time.perf_counter() - t0
+    time.sleep(0.3)
+    checar("smooth termina no alvo exato", pointer.position() == alvo, str(pointer.position()))
+    checar("smooth leva tempo (nao teleporta)", decorrido > 0.05, f"{decorrido:.3f}s")
+    checar("modo do perfil aplicado", pointer.aplicar(inicio[0], inicio[1], {"mode": "smooth"}) is not None)
+    pointer.move_to(*inicio)
+else:
+    pular("smooth chega no alvo", "mexeria no seu mouse; rode com --executar")
 
 print("11. hsv_min/hsv_max acha vermelho e ignora azul")
 perfil = profiles.load("profiles/faixa_hsv.json")
@@ -160,7 +186,11 @@ except ValueError as erro:
     checar("rejeita detector", "magia" in str(erro), str(erro)[:48])
 
 print()
+if pulados:
+    print(f"{len(pulados)} verificacao(oes) pulada(s): {pulados}")
+
 if falhas:
     print(f"FALHAS: {len(falhas)} -> {falhas}")
     sys.exit(1)
+
 print("TODAS AS VERIFICACOES PASSARAM")
