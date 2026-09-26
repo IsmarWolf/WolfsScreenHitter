@@ -6,6 +6,7 @@ vermelho foi ignorado e move o cursor de verdade. Fecha tudo ao final.
 """
 
 import ctypes
+import json
 import math
 import os
 import pathlib
@@ -63,6 +64,13 @@ if janela is None:
     sys.exit(1)
 
 print(f"janela '{janela.title}' {janela.width}x{janela.height} @({janela.left},{janela.top})")
+
+# A cena precisa estar visivel: o detector so enxerga o que esta desenhado.
+ctypes.windll.user32.ShowWindow(janela.handle, 9)
+ctypes.windll.user32.SetForegroundWindow(janela.handle)
+ctypes.windll.user32.BringWindowToTop(janela.handle)
+time.sleep(1.5)
+print("cena trazida para o primeiro plano")
 
 regiao = (janela.left, janela.top, janela.width, janela.height)
 
@@ -133,17 +141,59 @@ with ScreenCapture() as captura:
                 longe_do_vermelho = False
     print(f"detecao nao e o anel vermelho: {longe_do_vermelho}")
 
+    # O perfil que acompanha o pacote usa region.mode "screen" e nao sabe
+    # qual programa e o alvo. Ele precisa achar o anel em tela cheia.
+    print()
+    print("perfil generico do pacote, em modo tela cheia")
+    perfil_generico = json.loads(
+        (RAIZ / "profiles" / "circulo_claro.json").read_text(encoding="utf-8")
+    )
+    assert perfil_generico["region"]["mode"] == "screen", "perfil deveria varrer a tela"
+    assert perfil_generico["window"]["title"] is None, "perfil nao deveria citar programa"
+
+    tela_inteira = captura.grab(windows.screen())
+    achado_generico = detect.detect(tela_inteira, perfil_generico)
+    print(f"deteccao em tela cheia: {achado_generico}")
+
+    generico_achou = achado_generico is not None
+    # Em tela cheia o detector ve a interface do usuario tambem, entao ele
+    # pode escolher outro claro e redondo. Isso e esperado e esta documentado.
+    na_janela = False
+    if achado_generico is not None:
+        na_janela = (
+            janela.left - 20
+            <= achado_generico.center[0]
+            <= janela.right + 20
+            and janela.top - 20 <= achado_generico.center[1] <= janela.bottom + 20
+        )
+    print(f"achou algo em tela cheia: {generico_achou}")
+    print(f"caiu dentro da janela do alvo: {na_janela} (pode ser outro, ver README)")
+
     cv2.imwrite(str(SAIDA / "verif_tela.png"), quadro)
 
     print()
     print("movendo o cursor de verdade para o ponto detectado")
+
+    # A janela pode ter se movido entre a captura e agora, entao conferimos.
+    agora = windows.find_window("alvo.png")
+    if agora is not None and (agora.left, agora.top) != (janela.left, janela.top):
+        print(f"janela se moveu: {(janela.left, janela.top)} -> {(agora.left, agora.top)}")
+        janela = agora
+        regiao = (janela.left, janela.top, janela.width, janela.height)
+    else:
+        print(f"janela parada em {(janela.left, janela.top)}")
+
+    tela_x = regiao[0] + achado.center[0]
+    tela_y = regiao[1] + achado.center[1]
+    print(f"alvo recalculado: ({tela_x:.0f}, {tela_y:.0f})")
+
     origem = (100, 100)
     pointer.move_to(*origem)
-    time.sleep(0.15)
+    time.sleep(0.3)
     antes = pointer.position()
-    print(f"cursor em posicao neutra: {antes}")
+    print(f"pedido neutro {origem}, lido: {antes}")
     pointer.move_to(tela_x, tela_y)
-    time.sleep(0.15)
+    time.sleep(0.3)
     depois = pointer.position()
     print(f"depois: {depois}")
     partiu = antes != depois
@@ -172,6 +222,7 @@ ok = (
     and longe_do_vermelho
     and partiu
     and alcancou
+    and generico_achou
 )
 
 print()

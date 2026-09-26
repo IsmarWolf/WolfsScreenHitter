@@ -69,6 +69,151 @@ Pare com **Esc**, **F12**, ou deixando o mouse parado no canto superior esquerdo
 
 O comando `check` é o mais útil para ajustar um perfil: ele diz se achou, onde está, e salva uma imagem com a caixa destacada para você ver o que o detector enxergou.
 
+## Funciona em qualquer tela
+
+O programa não sabe, e não precisa saber, qual programa é o seu alvo. Ele não procura por nome de jogo, nem por janela específica, a menos que você peça. Por padrão o perfil `circulo_claro.json` varre a tela inteira e reconhece o alvo pelo formato e pela cor.
+
+Isso significa que a mesma configuração serve para um jogo, um vídeo, um gráfico, uma planilha, um PDF ou qualquer outra coisa que desenhe um alvo na tela. O que o detector enxerga são pixels, não aplicativos.
+
+### Escolhendo onde procurar
+
+Tudo é o bloco `region`. Quatro opções, e elas se trocam sem mudar mais nada:
+
+| `mode` | Onde olha | Quando usar |
+|---|---|---|
+| `screen` | A tela primária inteira | Padrão. Serve para a maioria dos casos. |
+| `virtual` | Todos os monitores ao mesmo tempo | Alvo em outro monitor, ou mais de um monitor. |
+| `window` | Só a janela de `window.title` | Muita coisa na tela se parece com o alvo. |
+| `fixed` | Um retângulo que você escolhe | Você sabe exatamente onde o alvo aparece. |
+
+Para usar em **qualquer monitor**, troque para o desktop inteiro:
+
+```json
+"region": { "mode": "virtual" }
+```
+
+Para usar **só numa janela**, aponte pelo título e descarte as bordas com a margem:
+
+```json
+"window": { "title": "MeuPrograma" },
+"region": { "mode": "window", "margin": 130 }
+```
+
+Para fixar **um lugar exato**, use coordenadas:
+
+```json
+"region": { "mode": "fixed", "left": 640, "top": 300, "width": 640, "height": 480 }
+```
+
+### A diferença que importa: janela ou tela toda
+
+Escolher `screen` é o mais fácil e o mais abrangente, mas tem uma consequência: o detector vê **tudo que estiver visível**, incluindo a interface dos seus próprios programas. Se você tem um ícone claro e redondo no canto da tela, ele é um candidato tão válido quanto o alvo de verdade, e o detector vai escolher o maior.
+
+Quando isso acontecer, estreite a busca. O `margin` é a ferramenta certa: ela apaga uma faixa em volta da janela, jogando fora ícones, botões e barras de status que ficam nas bordas.
+
+Como descobrir a margem certa para o seu caso: comece em `0`, rode o `check` com `--debug`, e olhe onde a caixa verde caiu. Se caiu em um ícone da borda, aumente a margem até o suficiente para cortar aquele ícone. Se a caixa someu junto com o alvo, diminua.
+
+Para descobrir o título exato da janela, rode `list-windows` e copie o nome que aparece.
+
+### Um detalhe sobre o que está visível
+
+O detector trabalha no que a câmera de tela enxerga, ou seja, o que está **desenhado na tela**. Se outra janela estiver por cima do alvo, o alvo não existe para o detector. Isso não é defeito: é o que qualquer captura de tela faz.
+
+Se você usa o modo `tela` e o alvo some do nada, geralmente é porque o seu navegador, terminal ou editor passou para a frente. Nesse caso, `window` é o modo certo.
+
+## Como ajustar um perfil para o seu alvo
+
+O fluxo sempre é o mesmo: copia um perfil de exemplo, ajusta o `target`, testa com `check` olhando o `--debug`, repete. Você nunca precisa mexer em Python.
+
+### Se o alvo é claro e redondo
+
+Copie `profiles/circulo_claro.json`. Esse é o caso mais comum e já vem pronto.
+
+### Se o alvo é escuro
+
+Troque `bright` por `dark`. O `v_max` é o brilho máximo, então um alvo preto sobre fundo claro usa algo entre `40` e `90`:
+
+```json
+"target": {
+  "dark": { "v_max": 80, "s_max": 120 },
+  "size": { "min": 45, "max": 240 },
+  "aspect": { "min": 0.65, "max": 1.5 },
+  "fill": { "min": 0.04, "max": 0.4 }
+}
+```
+
+### Se o alvo tem uma cor viva
+
+Cores fortes são descartadas por `bright` e por `dark` porque têm saturação alta. Use uma faixa HSV. Os valores são `[matiz, saturação, valor]`, e o matiz vai de 0 a 179 no OpenCV:
+
+| Cor | `hsv_min` | `hsv_max` |
+|---|---|---|
+| Vermelho | `[0, 140, 140]` | `[10, 255, 255]` |
+| Laranja/amarelo | `[11, 140, 140]` | `[30, 255, 255]` |
+| Verde | `[35, 90, 90]` | `[85, 255, 255]` |
+| Azul | `[100, 90, 90]` | `[130, 255, 255]` |
+| Roxo | `[130, 90, 90]` | `[160, 255, 255]` |
+| Rosa | `[160, 90, 140]` | `[179, 255, 255]` |
+
+Copie `profiles/faixa_hsv.json`, que já usa vermelho, e troque os dois trios.
+
+Para descobrir o matiz de um pixel, use a captura que o próprio programa gravou:
+
+```bash
+python -m wolfs_screen_hitter capture captura.png
+python -m wolfs_screen_hitter crop captura.png matiz.png 640 300 1 1
+```
+
+Um `1x1` de um ponto do alvo. Depois leia o tri HSV com o Python:
+
+```bash
+python -c "import cv2; print(cv2.cvtColor(cv2.imread('matiz.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
+```
+
+### Se o alvo não é redondo
+
+Ajuste `aspect` e espere que o `fill` aceite a forma. Um losango ou um triângulo costuma passar com `aspect` entre `0.5` e `2.0` e `fill` de `0.2` a `0.6`. Se for um retângulo cheio, suba o teto do `fill` para `1.0`.
+
+### Se o alvo é uma letra, número ou ícone
+
+Use o detector `template` em vez do `shape`. O passo a passo completo está em [Como detectar uma letra ou símbolo](#como-detectar-uma-letra-ou-símbolo).
+
+## Receitas para os problemas comuns
+
+Estes são os ajustes que resolvem quase tudo. Sempre comece testando com `check --debug` antes de mudar qualquer número.
+
+**Não acha nada, e eu sei que o alvo está na tela**
+
+Quase sempre é o `work_scale` removendo o alvo. Se o alvo tem menos de uns 40 px, baixe para `0.35` ou coloque `1.0`. Se o alvo é pequeno por natureza, baixe também o `size.min`.
+
+**Acha, mas a caixa cai no lugar errado**
+
+Baixe o teto do `fill` para descartar blocos sólidos, ou suba `aspect` para descartar barras e faixas. Se o alvo verdadeiro é menor que o falso positivo, o detector escolhe o maior por padrão, então aperte o `size.max`.
+
+**Acha um ícone ou botão da interface**
+
+Não mexa no `target`, mexa no `region`. Use `mode: "window"` com `margin`, ou `mode: "fixed"` limitando a área.
+
+**Acha o alvo mas o cursor não vai até ele**
+
+Isso é o programa de destino ignorando movimento instantâneo. Troque `"mode": "teleport"` por `"mode": "smooth"`.
+
+**O alvo pisca e o programa parece perder ele**
+
+Normal. O laço só age quando há detecção. Se quiser suavizar, reduza o `work_scale` para `0.35`: imagem menor significa menos ruído e mais chance de acertar em quadros intermediários.
+
+**A janela do alvo tem bordas ou barras que atrapalham**
+
+Use `margin`. Comece em `0` e aumente aos poucos, conferindo no `--debug` a cada passo.
+
+**Está lento em monitor grande**
+
+Baixe o `work_scale` para `0.35`, ou troque `screen` por `window` com margem, que captura bem menos pixels.
+
+**Quero o cursor mais rápido ou mais lento no `smooth`**
+
+`duration` é o tempo total do movimento, em segundos. `0.08` é rápido, `0.30` é devagar e discreto. `jitter` é o tremor, em pixels.
+
 ## Como funciona
 
 ```
@@ -88,7 +233,27 @@ O ciclo é: capturar a região → detectar → mover o cursor → repetir. A ca
 
 Um perfil é um JSON que descreve **o que procurar, onde procurar e como reagir**.
 
+### O perfil mínimo
+
+Na maioria dos casos, tudo que você precisa é isto:
+
+```json
+{
+  "detector": "shape",
+  "region": { "mode": "screen" },
+  "target": {
+    "bright": { "v_min": 150, "s_max": 110 },
+    "size": { "min": 45, "max": 240 },
+    "fill": { "min": 0.04, "max": 0.4 }
+  }
+}
+```
+
+Sem `window`, sem nome de programa: o detector varre a tela e acha qualquer alvo claro e redondo que esteja visível. É o perfil mais genérico possível, e é o que resolve a maioria dos casos.
+
 ### Estrutura completa
+
+Todos os campos, com os valores padrão que valem quando você omite:
 
 ```json
 {
@@ -128,7 +293,7 @@ Um perfil é um JSON que descreve **o que procurar, onde procurar e como reagir*
 | `virtual` | Todos os monitores juntos. |
 | `fixed` | Retângulo fixo, com `left`, `top`, `width`, `height`. |
 
-O `margin` é o truque mais útil:many programs draw UI icons near the edges, and `margin: 130` removes them from consideration.
+O `margin` é o truque mais útil: muitos programas desenham ícones perto das bordas, e `margin: 130` tira eles da consideração.
 
 ### `target` — o que é o alvo
 
@@ -265,7 +430,7 @@ Geralmente é um elemento de interface parecido. Restrinja a região com `region
 
 **O cursor não se move**
 
-Confira a saída de `list-windows` e o `title` no perfil. Títulos precisam bater parcialmente, então `"title": "Roblox"` acha `"Roblox Player"`.
+Confira a saída de `list-windows` e o `title` no perfil. Títulos só precisam bater parcialmente: `"title": "Paint"` acha `"Paint - imagem.png"`.
 
 **O alvo aparece em varios lugares**
 

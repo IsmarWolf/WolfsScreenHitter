@@ -1,14 +1,11 @@
 {
-  "name": "Circulo claro (cena de acerto)",
+  "name": "Circulo claro em qualquer tela",
   "detector": "shape",
   "window": {
-    "title": "Roblox",
-    "min_width": 400,
-    "min_height": 300
+    "title": null
   },
   "region": {
-    "mode": "window",
-    "margin": 130
+    "mode": "screen"
   },
   "target": {
     "bright": {
