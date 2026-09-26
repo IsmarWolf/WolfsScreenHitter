@@ -81,12 +81,23 @@ The loop is always the same: copy a profile, adjust `target`, test with `check -
 |---|---|
 | `check PROFILE` | Looks once, reports, optionally draws a debug image. Moves nothing. |
 | `run PROFILE` | Follows the target in a loop and positions the cursor. |
-| `capture FILE` | Saves a full screenshot. |
+| `capture FILE` | Saves a screenshot of the window that was last focused, or the whole screen if there is no window to grab. |
 | `crop SRC DST X Y W H` | Cuts a template out of a screenshot. |
 | `list-profiles` | Shows the profiles available. |
 | `list-windows` | Lists visible windows with their size and position. |
 
-Useful flags: `--debug FILE` on `check` saves what the detector saw. `--dry-run` on `run` makes it behave like `check`. `--tentativas N` retries the capture. `run` also accepts `--interval` and `--espera`.
+Flags belong to one command each, and argparse will tell you if you mix them up:
+
+| Flag | On | What it does |
+|---|---|---|
+| `--debug FILE` | `check` | Saves what the detector saw, with the target boxed. |
+| `--tentativas N` | `check` | Retries the detection up to `N` times, `40` by default. |
+| `--espera S` | `check` | Pause between those retries, `0.05` seconds by default. |
+| `--interval S` | `run` | Pause between frames in the loop, `0.002` seconds by default. |
+| `--dry-run` | `run` | Runs the same detection as `check` and never moves the mouse. |
+| `--delay S` | `capture` | Waits `S` seconds before grabbing, for a menu you are about to open. |
+
+Two things `run --dry-run` cannot do: it takes no `--debug`, and it always uses the default `--tentativas` and `--espera`. Use `check` when you want a debug image or a longer retry.
 
 ---
 
@@ -393,10 +404,10 @@ Everything that commonly goes wrong, in one table. Find your symptom, read the c
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Finds nothing, target is on screen | `work_scale` shrank the target away | Lower it to `0.35`, or set `1.0` for small targets |
+| Finds nothing, but the target is right there | `work_scale` shrank the target below `size.min` | Raise it toward `1.0`. A low `work_scale` is for speed, not for small targets |
 | Finds nothing | Target smaller than `size.min` | Lower `size.min` |
 | Finds nothing | `bright`/`dark` do not match the colour | [Read the real value](#reading-the-colour-of-your-target) and match it |
-| Finds nothing, target is a vivid colour | `bright` and `dark` reject saturated pixels | Use `hsv_min`/`hsv_max` instead |
+| Finds nothing, target is a vivid colour | The profile caps saturation with `s_max`, so a saturated pixel is not `bright` or `dark` | Use `hsv_min`/`hsv_max` instead. The code default is `s_max` `255`, which accepts any saturation |
 | Finds nothing, target is small or thin | Fill and size filters too strict | Widen `size`, loosen `aspect`, lower the `fill` floor |
 | Box lands on a UI icon or button | Screen mode also sees your own interface | Use `region: "window"` with a `margin`, or `region: "fixed"` |
 | Box lands on the wrong similar shape | Filters too loose | Lower the `fill` ceiling, tighten `aspect` |
@@ -409,9 +420,10 @@ Everything that commonly goes wrong, in one table. Find your symptom, read the c
 | Symptom | Cause | Fix |
 |---|---|---|
 | Target disappears at random | Another window is on top of it | Bring it forward, or use `region: "window"` |
-| Target found in several places | The detector returns the best score | Narrow the area with `region: "fixed"` |
+| Target found in several places | Only one result comes back: `shape` keeps the largest blob, `template` keeps the best match | Narrow the area with `region: "fixed"` |
 | Window edges and bars get in the way | The search includes window chrome | Add `margin`, start at `0`, raise it while watching `--debug` |
-| Wrong window is being searched | `title` does not match | Run `list-windows` and copy the exact name; titles match partially |
+| Wrong window is being searched | `title` does not match | Run `list-windows`. The match is case-insensitive and partial, so a distinctive fragment is enough |
+| Prints `Aguardando a janela...` forever | The window is smaller than `window.min_width`/`min_height`, which both default to `200` | Lower them in the profile, or open the window bigger |
 | Region came out empty | No window matched the title, or the rectangle is degenerate | Run `check` to see the resolved region, then fix `window.title` or `region` |
 | Target is on a second monitor | `screen` only covers the primary | Use `region: "virtual"` |
 
@@ -420,7 +432,7 @@ Everything that commonly goes wrong, in one table. Find your symptom, read the c
 | Symptom | Cause | Fix |
 |---|---|---|
 | Cursor does not move at all | Nothing was detected | Run `check` first; if it finds nothing, fix detection |
-| Cursor reaches the target but the program ignores it | The program ignores instant movement | Set `pointer.mode` to `smooth` |
+| I move the mouse and it snaps back to the target | The loop re-centres the cursor on every frame, by design | Stop it with **Esc** or **F12**. No `pointer` setting yields control back to you; `smooth` only changes the path |
 | Cursor too fast or too slow in `smooth` | `duration` and `jitter` | `duration` `0.08` fast, `0.30` slow; `jitter` is tremor in pixels |
 | Cannot stop the loop | Not the usual keys | **Esc** or **F12**; or park the mouse in the top-left corner for `corner_seconds` |
 
@@ -428,6 +440,8 @@ Everything that commonly goes wrong, in one table. Find your symptom, read the c
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Template never matches | `threshold` is `0.80` by default and the match is just under it | Lower `threshold` towards `0.7`, and watch the score in `--debug` |
+| Template never matches | The template is larger than the captured region, so every scale is skipped | Make the region bigger, or shrink the crop |
 | Template never matches | Crop has extra background | Crop tightly to the glyph edges |
 | Template never matches | Template background differs from the screen | Use `invert: true`, or remove the background from the crop |
 | Template never matches | Target on screen is a different size | Widen `scale_min`/`scale_max`, raise `scale_steps` |
@@ -439,6 +453,8 @@ Everything that commonly goes wrong, in one table. Find your symptom, read the c
 | Symptom | Cause | Fix |
 |---|---|---|
 | Slow on a large monitor | Too many pixels to search | Lower `work_scale` to `0.35`, or use `window` with a margin |
+| A stack trace ends in `ProfileError` | The profile is missing a field, has the wrong type, or names an unknown detector or `pointer.mode` | Read the last line: it names the field. Compare against a shipped profile |
+| `JSON invalido ... Unexpected UTF-8 BOM` | The file was saved with a byte order mark, which `json` refuses | Save as UTF-8 without BOM. In PowerShell that is `-Encoding utf8NoBOM`, not `-Encoding UTF8` |
 | `ModuleNotFoundError` | Dependencies missing, or wrong folder | `pip install -r requirements.txt`, then run from the project folder |
 | `wolfs-screen-hitter` command not found | Package not installed | `pip install -e .`, or use `python -m wolfs_screen_hitter` |
 | Capture is slow or fails | DXGI unavailable | It falls back to `mss` automatically; if both fail, check the screen is not locked |

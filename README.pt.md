@@ -79,14 +79,26 @@ O ciclo é sempre o mesmo: copie um perfil, ajuste o `target`, teste com `check 
 
 | Comando | O que faz |
 |---|---|
-| `check PERFIL` | Procura uma vez, relata e opcionalmente salva imagem de debug. Não mexe em nada. |
+| `check PERFIL` | Procura uma vez, reporta, opcionalmente desenha uma imagem de debug. Não move nada. |
 | `run PERFIL` | Segue o alvo em laço e posiciona o cursor. |
-| `capture ARQUIVO` | Salva uma captura de tela inteira. |
+| `capture ARQUIVO` | Salva a captura da janela que estava em foco, ou da tela inteira se não houver janela para pegar. |
 | `crop ORIGEM DESTINO X Y L A` | Recorta um template de uma captura. |
 | `list-profiles` | Mostra os perfis disponíveis. |
-| `list-windows` | Lista janelas visíveis com tamanho e posição. |
+| `list-windows` | Lista as janelas visíveis com tamanho e posição. |
 
-Flags úteis: `--debug ARQUIVO` no `check` salva o que o detector viu. `--dry-run` no `run` faz ele se comportar como `check`. `--tentativas N` repete a captura. O `run` também aceita `--interval` e `--espera`.
+Cada flag pertence a um comando só, e o argparse avisa se você misturar:
+
+| Flag | No comando | O que faz |
+|---|---|---|
+| `--debug ARQUIVO` | `check` | Salva o que o detector viu, com o alvo marcado. |
+| `--tentativas N` | `check` | Repete a detecção até `N` vezes, `40` por padrão. |
+| `--espera S` | `check` | Pausa entre essas repetições, `0.05` segundos por padrão. |
+| `--interval S` | `run` | Pausa entre quadros do laço, `0.002` segundos por padrão. |
+| `--dry-run` | `run` | Roda a mesma detecção do `check` e nunca move o mouse. |
+| `--delay S` | `capture` | Espera `S` segundos antes de capturar, para um menu que você vai abrir. |
+
+Duas coisas que o `run --dry-run` não faz: não aceita `--debug`, e sempre usa o `--tentativas` e o `--espera` padrão. Use o `check` quando quiser imagem de debug ou mais retentativas.
+
 
 ---
 
@@ -393,14 +405,14 @@ Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, 
 
 | Sintoma | Causa | Correção |
 |---|---|---|
-| Não acha nada, e o alvo está na tela | O `work_scale` encolheu o alvo | Baixe para `0.35`, ou coloque `1.0` para alvos pequenos |
+| Não acha nada, e o alvo está ali na tela | O `work_scale` encolheu o alvo para baixo do `size.min` | Suba para perto de `1.0`. Um `work_scale` baixo é para velocidade, não para alvo pequeno |
 | Não acha nada | Alvo menor que o `size.min` | Baixe o `size.min` |
 | Não acha nada | `bright`/`dark` não descrevem a cor | [Leia o valor real](#lendo-a-cor-do-seu-alvo) e use |
-| Não acha nada, e o alvo é cor viva | `bright` e `dark` descartam pixel saturado | Use `hsv_min`/`hsv_max` |
+| Não acha nada, e o alvo é cor viva | O perfil limita a saturação com `s_max`, então pixel saturado não é `bright` nem `dark` | Use `hsv_min`/`hsv_max`. O padrão do código é `s_max` `255`, que aceita qualquer saturação |
 | Não acha nada, e o alvo é pequeno ou fino | Filtros de tamanho e preenchimento apertados | Alargue o `size`, afrouxe o `aspect`, baixe o piso do `fill` |
 | A caixa cai num ícone ou botão da interface | O modo tela também vê a sua própria interface | Use `region: "window"` com `margin`, ou `region: "fixed"` |
 | A caixa cai na forma parecida errada | Filtros largos demais | Baixe o teto do `fill`, aperte o `aspect` |
-| Pega o falso positivo maior | Sempre vence a maior pontuação | Baixe o `size.max` para menos que o alvo verdadeiro |
+| Pega o falso positivo maior | No `shape` sempre vence o maior bloco | Baixe o `size.max` para menos que o alvo verdadeiro |
 | O alvo pisca e o programa parece perder ele | A detecção roda nos quadros crus | Baixe o `work_scale` para `0.35` |
 | O alvo parece retângulo, não círculo | `aspect` apertado demais | Alargue o `aspect`, e suba o teto do `fill` para `1.0` se for bloco cheio |
 
@@ -409,9 +421,10 @@ Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, 
 | Sintoma | Causa | Correção |
 |---|---|---|
 | O alvo some do nada | Outra janela está por cima | Traga para a frente, ou use `region: "window"` |
-| O alvo aparece em vários lugares | O detector devolve a melhor pontuação | Feche a área com `region: "fixed"` |
+| O alvo aparece em vários lugares | Só volta um resultado: o `shape` fica com o maior bloco, o `template` fica com a melhor correspondência | Feche a área com `region: "fixed"` |
 | Bordas e barras da janela atrapalham | A busca inclui a moldura | Use `margin`, comece em `0` e aumente olhando o `--debug` |
-| Está procurando a janela errada | O `title` não bate | Rode `list-windows` e copie o nome exato; títulos batem parcialmente |
+| Está procurando a janela errada | O `title` não bate | Rode `list-windows`. A comparação ignora maiúsculas e é parcial, então um trecho distintoivo basta |
+| Fica imprimindo `Aguardando a janela...` | A janela é menor que `window.min_width`/`min_height`, que valem `200` por padrão | Baixe os dois no perfil, ou abra a janela maior |
 | A região saiu vazia | Nenhuma janela casou, ou o retângulo degenerou | Rode `check` para ver a região resolvida e ajuste `window.title` ou `region` |
 | O alvo está no segundo monitor | `screen` só cobre a primária | Use `region: "virtual"` |
 
@@ -420,7 +433,7 @@ Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, 
 | Sintoma | Causa | Correção |
 |---|---|---|
 | O cursor não se move | Nada foi detectado | Rode `check` primeiro; se não achar, resolva a detecção |
-| O cursor chega no alvo, mas o programa ignora | O programa ignora movimento instantâneo | Coloque `pointer.mode` como `smooth` |
+| Eu movo o mouse e ele volta para o alvo | O laço recentraliza o cursor a cada quadro, de propósito | Pare com **Esc** ou **F12**. Nenhuma configuração de `pointer` devolve o controle; `smooth` só muda o caminho |
 | Cursor rápido ou lento demais no `smooth` | `duration` e `jitter` | `duration` `0.08` rápido, `0.30` devagar; `jitter` é o tremor em pixels |
 | Não consegue parar o laço | Não são as teclas usuais | **Esc** ou **F12**; ou deixe o mouse no canto superior esquerdo por `corner_seconds` |
 
@@ -428,6 +441,8 @@ Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, 
 
 | Sintoma | Causa | Correção |
 |---|---|---|
+| O template nunca casa | O `threshold` é `0.80` por padrão e a correspondência fica logo abaixo | Baixe o `threshold` para perto de `0.7`, e olhe a nota no `--debug` |
+| O template nunca casa | O template é maior que a região capturada, então todas as escalas são puladas | Aumente a região, ou diminua o recorte |
 | O template nunca casa | O recorte tem fundo sobrando | Corte rente às bordas do glifo |
 | O template nunca casa | O fundo do template difere do da tela | Use `invert: true`, ou tire o fundo do recorte |
 | O template nunca casa | O alvo na tela tem outro tamanho | Alargue `scale_min`/`scale_max`, aumente `scale_steps` |
@@ -439,6 +454,8 @@ Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, 
 | Sintoma | Causa | Correção |
 |---|---|---|
 | Lento em monitor grande | Bytes demais para varrer | Baixe o `work_scale` para `0.35`, ou use `window` com margem |
+| A stack trace termina em `ProfileError` | O perfil está sem um campo, com o tipo errado, ou cita um `detector` ou `pointer.mode` inválido | Leia a última linha: ela nomeia o campo. Compare com um perfil de exemplo |
+| `JSON invalido ... Unexpected UTF-8 BOM` | O arquivo foi salvo com marca de ordem de byte, que o `json` recusa | Salve como UTF-8 sem BOM. No PowerShell é `-Encoding utf8NoBOM`, e não `-Encoding UTF8` |
 | `ModuleNotFoundError` | Dependências faltando, ou pasta errada | `pip install -r requirements.txt`, e rode da pasta do projeto |
 | Comando `wolfs-screen-hitter` não encontrado | Pacote não instalado | `pip install -e .`, ou use `python -m wolfs_screen_hitter` |
 | A captura falha ou fica lenta | DXGI indisponível | Cai para `mss` sozinha; se as duas falharem, veja se a tela não está bloqueada |

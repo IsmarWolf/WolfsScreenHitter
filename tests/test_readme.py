@@ -14,6 +14,21 @@ def slug(titulo):
     return re.sub(r"\s+", "-", titulo.strip()).lower()
 
 
+def blocos_de_tabela(linhas):
+    """Cada corrida de linhas comecando com '|' vira um bloco."""
+    blocos = []
+    atual = []
+    for indice, linha in enumerate(linhas, start=1):
+        if linha.startswith("|"):
+            atual.append((indice, linha))
+        elif atual:
+            blocos.append(atual)
+            atual = []
+    if atual:
+        blocos.append(atual)
+    return blocos
+
+
 def analisar(caminho):
     texto = caminho.read_text(encoding="utf-8")
     linhas = texto.splitlines()
@@ -30,6 +45,15 @@ def analisar(caminho):
         if link not in alvos:
             quebrados.append(link)
 
+    # Uma tabela partida por uma linha em branco vira texto cru no
+    # Markdown: o segundo pedaco nao tem cabecalho nem separador.
+    tabelas_partidas = []
+    for bloco in blocos_de_tabela(linhas):
+        inicio, cabecalho = bloco[0]
+        tem_separador = len(bloco) > 1 and re.match(r"^\|[\s:|-]+\|$", bloco[1][1])
+        if not tem_separador:
+            tabelas_partidas.append(inicio)
+
     return {
         "nome": caminho.name,
         "linhas": len(linhas),
@@ -40,6 +64,7 @@ def analisar(caminho):
         "tabelas_n": len(tabelas),
         "blocos_n": blocos,
         "quebrados": quebrados,
+        "tabelas_partidas": tabelas_partidas,
     }
 
 
@@ -58,6 +83,12 @@ for r in (ing, pt):
     if r["quebrados"]:
         print(f"  LINKS QUEBRADOS: {r['quebrados']}")
         falhas.append(f"{r['nome']}: {r['quebrados']}")
+    if r["tabelas_partidas"]:
+        print(
+            f"  TABELAS SEM CABECALHO (partidas por linha em branco): "
+            f"linhas {r['tabelas_partidas']}"
+        )
+        falhas.append(f"{r['nome']}: tabelas partidas em {r['tabelas_partidas']}")
 
 print()
 if ing["h2_n"] != pt["h2_n"]:
