@@ -11,45 +11,16 @@ Two ways to recognise the target, both configured through a JSON file:
 
 Runs on Windows, with the target anywhere you choose: a specific window, the central area of that window, the whole screen, the virtual desktop, or a fixed rectangle.
 
-## Tests
+---
 
-Two scripts, no extra framework. Neither one touches your mouse by default: the parts that move the cursor are opt-in.
+## Setup
 
-The first is safe to run at any time:
+### 1. Requirements
 
-```bash
-python tests/test_local.py
-```
+- Windows 10 or 11
+- Python 3.10 or newer (`python --version`)
 
-It checks offline that the package contains no click calls, that `pyautogui` is not a dependency, that the profiles load, and that detectors, regions and movement modes behave. It finishes on its own, printing one line per check.
-
-The second one moves your mouse and focuses a window for a few seconds, so it does nothing without the flag:
-
-```bash
-python tests/test_e2e.py --executar
-```
-
-This is the real test: it builds a scene with a light ring and a red ring, opens it in the Windows viewer, captures the real screen over DXGI, confirms it detected the light ring and ignored the red one, and moves the cursor to the centre of the target.
-
-The two movement checks in `test_local.py` are opt-in as well:
-
-```bash
-python tests/test_local.py --executar
-```
-
-Without the flag they show up as `[skipped]`, and everything else is still verified. Use `--executar` when you are not typing, because the cursor will jump around the screen.
-
-## What this program does not do
-
-- It does not click. There is no button call anywhere in the code, and a test enforces that.
-- It does not type anything.
-- It does not send network events, and it reads nothing outside the area you configured.
-
-If you need automatic clicking, this is the wrong project.
-
-## Installation
-
-Requires Python 3.10 or newer.
+### 2. Install
 
 ```bash
 git clone https://github.com/IsmarWolf/WolfsScreenHitter.git
@@ -59,33 +30,88 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Optionally, to get the `wolfs-screen-hitter` command available:
+`opencv-python`, `numpy`, `dxcam` and `mss` are the only dependencies. Nothing else, and no GPU needed.
+
+Optionally install the package itself, which gives you a `wolfs-screen-hitter` command:
 
 ```bash
 pip install -e .
 ```
 
-## Quick start
+### 3. First run
+
+Start here, before anything else. This checks the detection once and moves nothing:
 
 ```bash
-# see what is available
-python -m wolfs_screen_hitter list-profiles
-python -m wolfs_screen_hitter list-windows
-
-# test the detection without touching the mouse (always start here)
 python -m wolfs_screen_hitter check profiles/circulo_claro.json --debug out/debug.png
+```
 
-# follow the target for real
+Open `out/debug.png`. A green box on your target means the setup works. No box means the target does not match the profile yet — go to [Troubleshooting](#troubleshooting).
+
+Two things to know about what you just ran:
+
+- The example profile uses `region: "screen"`, so it looks at the whole primary screen and expects to see a light round target somewhere in it. If you do not have one on screen right now, it correctly reports nothing. That is not a broken install.
+- The detector only sees what is **drawn on screen**. If the target is covered by another window, it does not exist as far as the detector is concerned.
+
+### 4. Run it for real
+
+```bash
 python -m wolfs_screen_hitter run profiles/circulo_claro.json
 ```
 
-Stop with **Esc**, **F12**, or by leaving the mouse parked in the top-left corner for a second.
+Stop with **Esc**, **F12**, or by parking the mouse in the top-left corner for a second.
 
-The `check` command is the most useful one when tuning a profile: it tells you whether it found anything, where it is, and saves an image with the box drawn on it so you can see what the detector saw.
+### 5. Make it yours
 
-## It works on any screen
+Copy one of the example profiles and edit the `target` block. The shipped profiles are:
 
-The program does not know, and does not need to know, which program is your target. It does not look for a game name or a specific window unless you ask it to. By default the `circulo_claro.json` profile sweeps the whole screen and recognises the target by shape and colour.
+| Profile | For |
+|---|---|
+| `profiles/circulo_claro.json` | A light round target, anywhere on screen. Start here. |
+| `profiles/faixa_hsv.json` | A target of a specific vivid colour, by HSV range. |
+| `profiles/letra_template.json` | A letter, number or icon, by image template. |
+
+The loop is always the same: copy a profile, adjust `target`, test with `check --debug`, repeat. You never need to touch Python. [Tuning a profile](#tuning-a-profile) has the recipes.
+
+---
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `check PROFILE` | Looks once, reports, optionally draws a debug image. Moves nothing. |
+| `run PROFILE` | Follows the target in a loop and positions the cursor. |
+| `capture FILE` | Saves a full screenshot. |
+| `crop SRC DST X Y W H` | Cuts a template out of a screenshot. |
+| `list-profiles` | Shows the profiles available. |
+| `list-windows` | Lists visible windows with their size and position. |
+
+Useful flags: `--debug FILE` on `check` saves what the detector saw. `--dry-run` on `run` makes it behave like `check`. `--tentativas N` retries the capture. `run` also accepts `--interval` and `--espera`.
+
+---
+
+## How it works
+
+```
+wolfs_screen_hitter/
+  win.py        Win32 access: cursor, keys, movement dispatch
+  capture.py    screen capture (DXGI, falling back to mss)
+  windows.py    window enumeration and search-region resolution
+  detect.py     the two detectors: shape by colour and template
+  profiles.py   loading and validation of JSON profiles
+  pointer.py    cursor movement modes
+  app.py        main loop and command line
+```
+
+The cycle is: capture the region → detect → move the cursor → repeat. DXGI capture takes about 2 ms and detection a few more milliseconds, which gives over a hundred frames per second on a full-screen capture.
+
+Screen capture goes through DXGI first and falls back to `mss` automatically if DXGI is unavailable, such as on some hybrid-graphics laptops.
+
+---
+
+## Works on any screen
+
+The program does not know, and does not need to know, which program is your target. It does not look for a game name or a specific window unless you ask it to.
 
 That means the same configuration works for a game, a video, a chart, a spreadsheet, a PDF, or anything else that draws a target on screen. What the detector sees is pixels, not applications.
 
@@ -119,129 +145,17 @@ To pin down **an exact spot**, use coordinates:
 "region": { "mode": "fixed", "left": 640, "top": 300, "width": 640, "height": 480 }
 ```
 
-### The difference that matters: window or whole screen
+### Screen or window?
 
 Choosing `screen` is the easiest and most broad, but it has a consequence: the detector sees **everything that is visible**, including the interface of your own programs. If you have a light round icon in the corner of the screen, it is just as valid a candidate as the real target, and the detector will pick the largest one.
 
-When that happens, narrow the search. `margin` is the right tool: it erases a band around the window, discarding the icons, buttons and status bars that sit near the edges.
+When that happens, narrow the search. `margin` is the right tool: it erases a band around the window, discarding the icons, buttons and status bars near the edges.
 
-How to find the right margin for your case: start at `0`, run `check` with `--debug`, and look at where the green box landed. If it landed on an edge icon, raise the margin until that icon is cut off. If the box disappeared along with the target, lower it.
+To find the right margin for your case: start at `0`, run `check` with `--debug`, and look at where the green box landed. If it landed on an edge icon, raise the margin until that icon is cut off. If the box disappeared along with the target, lower it.
 
-To find the exact window title, run `list-windows` and copy the name that shows up.
+To find the exact window title, run `list-windows` and copy the name that shows up. Titles only need to match partially, so `"title": "Paint"` finds `"Paint - picture.png"`.
 
-### One detail about what is visible
-
-The detector works on what the screen camera sees, which is what is **drawn on screen**. If another window is on top of the target, the target does not exist as far as the detector is concerned. This is not a defect: it is what any screen capture does.
-
-If you use the `screen` mode and the target vanishes for no reason, it is usually because your browser, terminal or editor came to the front. In that case `window` is the right mode.
-
-## Tuning a profile for your target
-
-The flow is always the same: copy one of the example profiles, adjust the `target`, test with `check` looking at the `--debug` image, repeat. You never need to touch Python.
-
-### If the target is light and round
-
-Copy `profiles/circulo_claro.json`. This is the most common case and it is ready as is.
-
-### If the target is dark
-
-Replace `bright` with `dark`. `v_max` is the maximum brightness, so a black target on a light background uses something between `40` and `90`:
-
-```json
-"target": {
-  "dark": { "v_max": 80, "s_max": 120 },
-  "size": { "min": 45, "max": 240 },
-  "aspect": { "min": 0.65, "max": 1.5 },
-  "fill": { "min": 0.04, "max": 0.4 }
-}
-```
-
-### If the target has a vivid colour
-
-Strong colours are rejected by `bright` and by `dark` because they are highly saturated. Use an HSV range instead. The values are `[hue, saturation, value]`, and hue runs from 0 to 179 in OpenCV:
-
-| Colour | `hsv_min` | `hsv_max` |
-|---|---|---|
-| Red | `[0, 140, 140]` | `[10, 255, 255]` |
-| Orange/yellow | `[11, 140, 140]` | `[30, 255, 255]` |
-| Green | `[35, 90, 90]` | `[85, 255, 255]` |
-| Blue | `[100, 90, 90]` | `[130, 255, 255]` |
-| Purple | `[130, 90, 90]` | `[160, 255, 255]` |
-| Pink | `[160, 90, 140]` | `[179, 255, 255]` |
-
-Copy `profiles/faixa_hsv.json`, which already uses red, and swap the two triples.
-
-To find the hue of a pixel, use a screenshot the program itself took:
-
-```bash
-python -m wolfs_screen_hitter capture screenshot.png
-python -m wolfs_screen_hitter crop screenshot.png hue.png 640 300 1 1
-```
-
-That is a `1x1` crop of a point on the target. Then read the HSV triple with Python:
-
-```bash
-python -c "import cv2; print(cv2.cvtColor(cv2.imread('hue.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
-```
-
-### If the target is not round
-
-Adjust `aspect` and let `fill` accept the shape. A diamond or a triangle usually passes with `aspect` between `0.5` and `2.0` and `fill` from `0.2` to `0.6`. If it is a solid rectangle, raise the `fill` ceiling to `1.0`.
-
-### If the target is a letter, number or icon
-
-Use the `template` detector instead of `shape`. The complete walkthrough is in [Detecting a letter or symbol](#detecting-a-letter-or-symbol).
-
-## Recipes for common problems
-
-These are the adjustments that fix almost everything. Always start by testing with `check --debug` before changing any number.
-
-**It finds nothing, and I know the target is on screen**
-
-Almost always the `work_scale` is removing the target. If the target is smaller than about 40 px, drop it to `0.35` or set `1.0`. If the target is small by nature, lower `size.min` as well.
-
-**It finds something, but the box lands in the wrong place**
-
-Lower the `fill` ceiling to discard solid blocks, or raise the `aspect` limits to discard bars and strips. If the real target is smaller than the false positive, remember the detector picks the largest by default, so tighten `size.max`.
-
-**It picks up an icon or a UI button**
-
-Do not touch `target`, touch `region`. Use `mode: "window"` with a `margin`, or `mode: "fixed"` to limit the area.
-
-**It finds the target but the cursor does not go there**
-
-The destination program is ignoring instant movement. Switch `"mode": "teleport"` to `"mode": "smooth"`.
-
-**The target flickers and the program seems to lose it**
-
-Normal. The loop only acts when there is a detection. To smooth it out, reduce `work_scale` to `0.35`: a smaller image means less noise and a better chance of hitting on intermediate frames.
-
-**The target window has edges or bars in the way**
-
-Use `margin`. Start at `0` and raise it little by little, checking the `--debug` image at each step.
-
-**It is slow on a large monitor**
-
-Drop `work_scale` to `0.35`, or switch `screen` to `window` with a margin, which captures far fewer pixels.
-
-**I want the cursor faster or slower in `smooth` mode**
-
-`duration` is the total movement time in seconds. `0.08` is fast, `0.30` is slow and discreet. `jitter` is the tremor amplitude, in pixels.
-
-## How it works
-
-```
-wolfs_screen_hitter/
-  win.py        Win32 access: cursor, keys, movement dispatch
-  capture.py    screen capture (DXGI, falling back to mss)
-  windows.py    window enumeration and search-region resolution
-  detect.py     the two detectors: shape by colour and template
-  profiles.py   loading and validation of JSON profiles
-  pointer.py    cursor movement modes
-  app.py        main loop and command line
-```
-
-The cycle is: capture the region → detect → move the cursor → repeat. DXGI capture takes about 2 ms and detection a few more milliseconds, which gives over a hundred frames per second on a full-screen capture.
+---
 
 ## Profiles
 
@@ -300,14 +214,11 @@ Every field, with the default value that applies when you omit it:
 
 ### `region` — where to look
 
-| `mode` | Meaning |
+| Key | Meaning |
 |---|---|
-| `window` | The area of the `window.title` window. Use `margin` to discard the edges. |
-| `screen` | The entire primary screen. |
-| `virtual` | All monitors together. |
-| `fixed` | A fixed rectangle, with `left`, `top`, `width`, `height`. |
-
-`margin` is the most useful trick: many programs draw icons near the edges, and `margin: 130` takes them out of consideration.
+| `mode` | `window`, `screen`, `virtual` or `fixed`, as described above. |
+| `margin` | Pixels discarded from each edge. Only used by `window`. |
+| `left`, `top`, `width`, `height` | The rectangle, only used by `fixed`. |
 
 ### `target` — what the target is
 
@@ -330,7 +241,16 @@ finds dark pixels. You can use `bright` and `dark` together: the target becomes 
 "hsv_max": [12, 255, 255]
 ```
 
-picks an exact range of hue, saturation and value. `hsv_min` and `hsv_max` replace `bright`/`dark` when present. Useful for a specific colour, for instance vivid red: hue from 0 to 12.
+picks an exact range of hue, saturation and value. `hsv_min` and `hsv_max` replace `bright`/`dark` when present. The values are `[hue, saturation, value]`, and hue runs from 0 to 179 in OpenCV:
+
+| Colour | `hsv_min` | `hsv_max` |
+|---|---|---|
+| Red | `[0, 140, 140]` | `[10, 255, 255]` |
+| Orange/yellow | `[11, 140, 140]` | `[30, 255, 255]` |
+| Green | `[35, 90, 90]` | `[85, 255, 255]` |
+| Blue | `[100, 90, 90]` | `[130, 255, 255]` |
+| Purple | `[130, 90, 90]` | `[160, 255, 255]` |
+| Pink | `[160, 90, 140]` | `[179, 255, 255]` |
 
 The shape filters:
 
@@ -340,18 +260,57 @@ The shape filters:
 | `aspect` | Ratio between width and height. `1.0` is a square, `0.5` is twice as wide as tall. |
 | `fill` | Fraction of the box filled with target pixels. A thin outline sits near `0.1`; a solid block sits near `1.0`. This is the filter that separates a ring from a rectangle. |
 | `area_min` | Minimum area in pixels, to discard noise. |
-| `work_scale` | Downscale applied to the image before searching. `0.5` speeds things up a lot and still finds targets of 40 px or more. |
+| `work_scale` | Downscale applied before searching. `0.5` speeds things up a lot and still finds targets of 40 px or more. |
 
 When more than one candidate passes the filters, the **largest** one wins.
+
+### Tuning a profile
+
+The loop is always the same: copy a profile, adjust `target`, test with `check --debug`, repeat. You never need to touch Python.
+
+**Light and round target.** Copy `profiles/circulo_claro.json`. This is the most common case and it is ready as is.
+
+**Dark target.** Replace `bright` with `dark`. `v_max` is the maximum brightness, so a black target on a light background uses something between `40` and `90`:
+
+```json
+"target": {
+  "dark": { "v_max": 80, "s_max": 120 },
+  "size": { "min": 45, "max": 240 },
+  "aspect": { "min": 0.65, "max": 1.5 },
+  "fill": { "min": 0.04, "max": 0.4 }
+}
+```
+
+**Vivid colour.** Strong colours are rejected by `bright` and by `dark` because they are highly saturated. Use an HSV range from the table above. Copy `profiles/faixa_hsv.json`, which already uses red, and swap the two triples.
+
+**Not round.** Adjust `aspect` and let `fill` accept the shape. A diamond or a triangle usually passes with `aspect` between `0.5` and `2.0` and `fill` from `0.2` to `0.6`. For a solid rectangle, raise the `fill` ceiling to `1.0`.
+
+**A letter, number or icon.** Use the `template` detector instead. See [Detecting a letter or symbol](#detecting-a-letter-or-symbol).
 
 ### `pointer` — how the cursor moves
 
 | `mode` | Behaviour |
 |---|---|
-| `teleport` | Goes straight to the centre. This is the default and the fastest. |
+| `teleport` | Goes straight to the centre. The default, and the fastest. |
 | `smooth` | Follows a curved path, with tremor and irregular steps, like a hand. Use it when the destination program ignores instant movement. |
 
-For `smooth` you can adjust `duration` (in seconds) and `jitter` (tremor amplitude, in pixels).
+For `smooth` you can adjust `duration` (total movement time in seconds) and `jitter` (tremor amplitude, in pixels). `0.08` is fast, `0.30` is slow and discreet.
+
+### `controls` — when to stop
+
+| Field | Meaning |
+|---|---|
+| `corner_seconds` | How long the mouse must sit in the top-left corner to stop. Default `1.0`. |
+
+**Esc** and **F12** always stop the loop, regardless of this field.
+
+### When `shape` beats `template`
+
+Use `shape` when the target is a **colour** and the shape does not matter much. It is faster and more stable, because it does not depend on an exact template or scale.
+
+Use `template` when what identifies the target is the **shape or the text**, and the colour may vary.
+
+---
 
 ## Detecting a letter or symbol
 
@@ -412,51 +371,109 @@ python -m wolfs_screen_hitter check profiles/letra_template.json --debug out/deb
 | `work_scale` | Downscale for speed. At `0.5`, noise tolerance drops. |
 | `invert` | Inverts the greyscale on both sides. Use it when the target is dark on a light background and `threshold` is not passing. |
 
-### Tips for templates that do not work
+### Reading the colour of your target
 
-- **Crop tightly.** Leftover background in the template makes the match worse. Go right up to the glyph edges.
-- **Background similar to the screen.** If the template has a white background and the screen is dark, use `invert: true` or remove the background from the crop.
-- **Scale matters.** If the target on screen is twice the size of the crop, set `scale_min: 1.5`.
-- **Words are not a single target.** Make one template per letter or symbol, and one profile for each. The detector always returns the best match for the image you gave it.
-- **Several identical targets on screen.** The detector always returns the highest score. If you need one specific target, narrow the search area with `region.fixed`.
+When you do not know what colour to put in the profile, let the tool measure it. Take a screenshot, crop a `1x1` pixel from the middle of the target, and read the value:
 
-## When `shape` beats `template`
+```bash
+python -m wolfs_screen_hitter capture screenshot.png
+python -m wolfs_screen_hitter crop screenshot.png hue.png 640 300 1 1
+python -c "import cv2; print(cv2.cvtColor(cv2.imread('hue.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
+```
 
-Use `shape` when the target is a **colour** and the shape does not matter much. It is faster and more stable, because it does not depend on an exact template or scale.
+The output is the `[hue, saturation, value]` triple. Use it directly as `hsv_min`, and as `hsv_max` with the channels pushed up.
 
-Use `template` when what identifies the target is the **shape or the text**, and the colour may vary.
+---
 
 ## Troubleshooting
 
-**`check` says it found nothing**
+Everything that commonly goes wrong, in one table. Find your symptom, read the cause, apply the fix.
 
-Save the debug image and look at what the detector saw:
+### Detection
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Finds nothing, target is on screen | `work_scale` shrank the target away | Lower it to `0.35`, or set `1.0` for small targets |
+| Finds nothing | Target smaller than `size.min` | Lower `size.min` |
+| Finds nothing | `bright`/`dark` do not match the colour | [Read the real value](#reading-the-colour-of-your-target) and match it |
+| Finds nothing, target is a vivid colour | `bright` and `dark` reject saturated pixels | Use `hsv_min`/`hsv_max` instead |
+| Finds nothing, target is small or thin | Fill and size filters too strict | Widen `size`, loosen `aspect`, lower the `fill` floor |
+| Box lands on a UI icon or button | Screen mode also sees your own interface | Use `region: "window"` with a `margin`, or `region: "fixed"` |
+| Box lands on the wrong similar shape | Filters too loose | Lower the `fill` ceiling, tighten `aspect` |
+| Picks the bigger false positive | The largest match always wins | Lower `size.max` below the real target's size |
+| Target flickers, program seems to lose it | Detection runs on raw frames | Lower `work_scale` to `0.35` |
+| Target looks like a rectangle, not a circle | `aspect` too narrow | Widen `aspect`, and raise the `fill` ceiling to `1.0` for a solid block |
+
+### Location
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Target disappears at random | Another window is on top of it | Bring it forward, or use `region: "window"` |
+| Target found in several places | The detector returns the best score | Narrow the area with `region: "fixed"` |
+| Window edges and bars get in the way | The search includes window chrome | Add `margin`, start at `0`, raise it while watching `--debug` |
+| Wrong window is being searched | `title` does not match | Run `list-windows` and copy the exact name; titles match partially |
+| Region came out empty | No window matched the title, or the rectangle is degenerate | Run `check` to see the resolved region, then fix `window.title` or `region` |
+| Target is on a second monitor | `screen` only covers the primary | Use `region: "virtual"` |
+
+### Movement
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Cursor does not move at all | Nothing was detected | Run `check` first; if it finds nothing, fix detection |
+| Cursor reaches the target but the program ignores it | The program ignores instant movement | Set `pointer.mode` to `smooth` |
+| Cursor too fast or too slow in `smooth` | `duration` and `jitter` | `duration` `0.08` fast, `0.30` slow; `jitter` is tremor in pixels |
+| Cannot stop the loop | Not the usual keys | **Esc** or **F12**; or park the mouse in the top-left corner for `corner_seconds` |
+
+### Templates
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Template never matches | Crop has extra background | Crop tightly to the glyph edges |
+| Template never matches | Template background differs from the screen | Use `invert: true`, or remove the background from the crop |
+| Template never matches | Target on screen is a different size | Widen `scale_min`/`scale_max`, raise `scale_steps` |
+| Word not recognised as one target | The detector looks for a single image | One template and one profile per letter or symbol |
+| Template is slow | Too many scales on a large region | Lower `work_scale` to `0.5` or `0.35` |
+
+### Performance and install
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Slow on a large monitor | Too many pixels to search | Lower `work_scale` to `0.35`, or use `window` with a margin |
+| `ModuleNotFoundError` | Dependencies missing, or wrong folder | `pip install -r requirements.txt`, then run from the project folder |
+| `wolfs-screen-hitter` command not found | Package not installed | `pip install -e .`, or use `python -m wolfs_screen_hitter` |
+| Capture is slow or fails | DXGI unavailable | It falls back to `mss` automatically; if both fail, check the screen is not locked |
+
+---
+
+## Tests
+
+Two scripts, no extra framework. Neither one touches your mouse by default: the parts that move the cursor are opt-in.
 
 ```bash
-python -m wolfs_screen_hitter check profiles/mine.json --debug out/debug.png
+python tests/test_local.py
 ```
 
-If the green box does not appear, the target did not pass the filters. Widen `size`, loosen `aspect`, raise `fill`, and check that `bright`/`dark` describe the colour well.
+Safe to run at any time. Checks offline that the package contains no click calls, that `pyautogui` is not a dependency, that the profiles load, and that detectors, regions and movement modes behave. Finishes on its own, one line per check.
 
-**It found the wrong place**
+```bash
+python tests/test_local.py --executar
+python tests/test_e2e.py --executar
+```
 
-Usually it is a similar-looking interface element. Restrict the region with `region.margin`, or lower `fill` if the real target is thinner than the false positive.
+These move your mouse and focus a window for a few seconds, so they do nothing without the flag. With it, `test_local.py` adds the two real movement checks, and `test_e2e.py` builds a scene with a light ring and a red ring, opens it in the Windows viewer, captures the real screen over DXGI, confirms it detected the light ring and ignored the red one, and moves the cursor to the centre of the target.
 
-**The cursor does not move**
+Without the flag those checks show up as `[skipped]` and everything else is still verified. Use `--executar` when you are not typing, because the cursor will jump around the screen.
 
-Check the `list-windows` output and the `title` in your profile. Titles only need to match partially: `"title": "Paint"` finds `"Paint - picture.png"`.
+Two more scripts keep this documentation honest. They need no mouse and no screen:
 
-**The target appears in several places**
+```bash
+python tests/test_readme.py
+python tests/test_readme_citacoes.py
+```
 
-`template` always returns the best score. Close the search area down with `region.fixed` to isolate it.
+The first checks that both READMEs have the same structure, that every internal link resolves, and that setup is the first section. The second checks that every command, flag, file, profile key and enum value cited in the READMEs actually exists in the code. If you change the code and forget the docs, these fail.
 
-**It is slow**
-
-Raise `work_scale` to `0.35` in the `shape` profile, or lower `scale_steps` in the `template` one. DXGI capture is fast; the cost is in the detection.
-
-**The target program ignores the cursor movement**
-
-Switch `"mode": "teleport"` to `"mode": "smooth"`. Some programs only register chained movement events.
+---
 
 ## Privacy
 

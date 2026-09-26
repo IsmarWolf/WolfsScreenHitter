@@ -4,52 +4,23 @@
 
 Aponta o cursor do mouse para um **alvo visual na tela**, encontrado em tempo real por cor ou por imagem de referência. O clique é sempre seu: o programa só posiciona o cursor, nunca clica.
 
-Duas formas de reconhecer o alvo, ambas configuráveis por um arquivo JSON:
+Duas formas de reconhecer o alvo, ambas configuradas por um arquivo JSON:
 
 - **`shape`** — acha blobs de uma cor com formato próximo de um círculo. Serve para alvos coloridos, contornos, botões, indicadores.
-- **`template`** — localize a imagem de uma letra, símbolo, ícone ou número usando correspondência de template em várias escalas. Serve para ler texto na tela.
+- **`template`** — localiza a imagem de uma letra, símbolo, ícone ou número usando correspondência de template em várias escalas. Serve para ler texto na tela.
 
-Roda em Windows, com o alvo em qualquer área que você escolher: janela específica, área central dessa janela, tela inteira, monitor virtual ou um retângulo fixo.
+Roda em Windows, com o alvo em qualquer área que você escolher: janela específica, área central dessa janela, tela inteira, desktop virtual ou um retângulo fixo.
 
-## Testes
-
-Dois scripts, sem framework extra. Nenhum dos dois mexe no seu mouse por padrão: as partes que movem o cursor são opt-in.
-
-O primeiro é seguro para rodar a qualquer momento:
-
-```bash
-python tests/test_local.py
-```
-
-Verifica de forma offline que não existe nenhuma chamada de clique no pacote, que `pyautogui` não é dependência, que os perfis carregam e que detectores, regiões e modos de movimento se comportam. Termina sozinho, com uma linha por verificação.
-
-O segundo mexe no seu mouse e foca uma janela por alguns segundos, então ele não faz nada sem a flag:
-
-```bash
-python tests/test_e2e.py --executar
-```
-
-Faz o teste de verdade: cria uma cena com um anel claro e um anel vermelho, abre no visualizador do Windows, captura a tela real por DXGI, confirma que detectou o anel claro e ignorou o vermelho, e move o cursor para o centro do alvo.
-
-As duas verificações de movimento do `test_local.py` também são opt-in:
-
-```bash
-python tests/test_local.py --executar
-```
-
-Sem a flag elas aparecem como `[pulado]`, e o resto continua sendo verificado. Use `--executar` quando não estiver digitando, porque o cursor vai saltar pela tela.
-
-## O que o programa não faz
-
-- Não clica. Não existe nenhuma chamada de botão no código, e há um teste que garante isso.
-- Não digita nada.
-- Não envia eventos de rede nem lê nada fora da área que você definiu.
-
-Se você precisa de clique automático, este não é o projeto certo.
+---
 
 ## Instalação
 
-Requer Python 3.10 ou superior.
+### 1. Requisitos
+
+- Windows 10 ou 11
+- Python 3.10 ou superior (`python --version`)
+
+### 2. Instalar
 
 ```bash
 git clone https://github.com/IsmarWolf/WolfsScreenHitter.git
@@ -59,39 +30,94 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Opcionalmente, para ter o comando `wolfs-screen-hitter` disponível:
+As únicas dependências são `opencv-python`, `numpy`, `dxcam` e `mss`. Nada além disso, e não precisa de GPU.
+
+Opcionalmente instale o pacote em si, o que dá o comando `wolfs-screen-hitter`:
 
 ```bash
 pip install -e .
 ```
 
-## Uso rápido
+### 3. Primeira execução
+
+Comece aqui, antes de qualquer outra coisa. Isto checa a detecção uma vez e não mexe em nada:
 
 ```bash
-# ver o que existe
-python -m wolfs_screen_hitter list-profiles
-python -m wolfs_screen_hitter list-windows
-
-# testar a detecção sem mexer no mouse (sempre comece aqui)
 python -m wolfs_screen_hitter check profiles/circulo_claro.json --debug out/debug.png
+```
 
-# seguir o alvo de verdade
+Abra `out/debug.png`. Uma caixa verde no seu alvo significa que a instalação funciona. Sem caixa, o alvo ainda não corresponde ao perfil — vá para [Solução de problemas](#solução-de-problemas).
+
+Duas coisas sobre o que você acabou de rodar:
+
+- O perfil de exemplo usa `region: "screen"`, então ele olha a tela primária inteira e espera ver um alvo claro e redondo em algum lugar dela. Se você não tiver um na tela agora, ele reporta que não achou nada, e isso está certo. Não é instalação quebrada.
+- O detector só enxerga o que está **desenhado na tela**. Se o alvo estiver coberto por outra janela, para o detector ele não existe.
+
+### 4. Rodar de verdade
+
+```bash
 python -m wolfs_screen_hitter run profiles/circulo_claro.json
 ```
 
 Pare com **Esc**, **F12**, ou deixando o mouse parado no canto superior esquerdo por um segundo.
 
-O comando `check` é o mais útil para ajustar um perfil: ele diz se achou, onde está, e salva uma imagem com a caixa destacada para você ver o que o detector enxergou.
+### 5. Deixar com a sua cara
+
+Copie um dos perfis de exemplo e edite o bloco `target`. Os perfis que acompanham o projeto:
+
+| Perfil | Para quê |
+|---|---|
+| `profiles/circulo_claro.json` | Alvo claro e redondo, em qualquer tela. Comece por este. |
+| `profiles/faixa_hsv.json` | Alvo de uma cor viva específica, por faixa HSV. |
+| `profiles/letra_template.json` | Letra, número ou ícone, por imagem de template. |
+
+O ciclo é sempre o mesmo: copie um perfil, ajuste o `target`, teste com `check --debug`, repita. Você nunca precisa mexer em Python. As receitas estão em [Ajustando um perfil](#ajustando-um-perfil).
+
+---
+
+## Comandos
+
+| Comando | O que faz |
+|---|---|
+| `check PERFIL` | Procura uma vez, relata e opcionalmente salva imagem de debug. Não mexe em nada. |
+| `run PERFIL` | Segue o alvo em laço e posiciona o cursor. |
+| `capture ARQUIVO` | Salva uma captura de tela inteira. |
+| `crop ORIGEM DESTINO X Y L A` | Recorta um template de uma captura. |
+| `list-profiles` | Mostra os perfis disponíveis. |
+| `list-windows` | Lista janelas visíveis com tamanho e posição. |
+
+Flags úteis: `--debug ARQUIVO` no `check` salva o que o detector viu. `--dry-run` no `run` faz ele se comportar como `check`. `--tentativas N` repete a captura. O `run` também aceita `--interval` e `--espera`.
+
+---
+
+## Como funciona
+
+```
+wolfs_screen_hitter/
+  win.py        acessos ao Win32: cursor, teclas, envio de movimento
+  capture.py    captura de tela (DXGI, com queda para mss)
+  windows.py    enumeração de janelas e resolução da região de busca
+  detect.py     os dois detectores: forma por cor e template
+  profiles.py   leitura e validação dos perfis JSON
+  pointer.py    modos de movimento do cursor
+  app.py        laço principal e comandos de linha
+```
+
+O ciclo é: capturar a região → detectar → mover o cursor → repetir. A captura DXGI leva cerca de 2 ms e a detecção alguns milissegundos, o que dá mais de cem quadros por segundo na captura de tela inteira.
+
+A captura passa por DXGI primeiro e cai para `mss` sozinha se o DXGI não estiver disponível, como acontece em alguns notebooks com GPU híbrida.
+
+---
 
 ## Funciona em qualquer tela
 
-O programa não sabe, e não precisa saber, qual programa é o seu alvo. Ele não procura por nome de jogo, nem por janela específica, a menos que você peça. Por padrão o perfil `circulo_claro.json` varre a tela inteira e reconhece o alvo pelo formato e pela cor.
+O programa não sabe, e não precisa saber, qual programa é o seu alvo. Ele não procura por nome de jogo, nem por janela específica, a menos que você peça.
 
 Isso significa que a mesma configuração serve para um jogo, um vídeo, um gráfico, uma planilha, um PDF ou qualquer outra coisa que desenhe um alvo na tela. O que o detector enxerga são pixels, não aplicativos.
 
 ### Escolhendo onde procurar
 
-Tudo é o bloco `region`. Quatro opções, e elas se trocam sem mudar mais nada:
+Tudo é o bloco `region`. Quatro opções, e você troca entre elas sem mudar mais nada:
 
 | `mode` | Onde olha | Quando usar |
 |---|---|---|
@@ -109,7 +135,7 @@ Para usar em **qualquer monitor**, troque para o desktop inteiro:
 Para usar **só numa janela**, aponte pelo título e descarte as bordas com a margem:
 
 ```json
-"window": { "title": "MeuPrograma" },
+"window": { "title": "MyProgram" },
 "region": { "mode": "window", "margin": 130 }
 ```
 
@@ -119,129 +145,17 @@ Para fixar **um lugar exato**, use coordenadas:
 "region": { "mode": "fixed", "left": 640, "top": 300, "width": 640, "height": 480 }
 ```
 
-### A diferença que importa: janela ou tela toda
+### Tela toda ou janela?
 
 Escolher `screen` é o mais fácil e o mais abrangente, mas tem uma consequência: o detector vê **tudo que estiver visível**, incluindo a interface dos seus próprios programas. Se você tem um ícone claro e redondo no canto da tela, ele é um candidato tão válido quanto o alvo de verdade, e o detector vai escolher o maior.
 
-Quando isso acontecer, estreite a busca. O `margin` é a ferramenta certa: ela apaga uma faixa em volta da janela, jogando fora ícones, botões e barras de status que ficam nas bordas.
+Quando isso acontecer, estreite a busca. O `margin` é a ferramenta certa: ela apaga uma faixa em volta da janela, jogando fora os ícones, botões e barras de status que ficam perto das bordas.
 
-Como descobrir a margem certa para o seu caso: comece em `0`, rode o `check` com `--debug`, e olhe onde a caixa verde caiu. Se caiu em um ícone da borda, aumente a margem até o suficiente para cortar aquele ícone. Se a caixa someu junto com o alvo, diminua.
+Para descobrir a margem certa do seu caso: comece em `0`, rode o `check` com `--debug` e olhe onde a caixa verde caiu. Se caiu em um ícone da borda, aumente a margem até cortar aquele ícone. Se a caixa sumiu junto com o alvo, diminua.
 
-Para descobrir o título exato da janela, rode `list-windows` e copie o nome que aparece.
+Para descobrir o título exato da janela, rode `list-windows` e copie o nome que aparece. Títulos só precisam bater parcialmente, então `"title": "Paint"` acha `"Paint - imagem.png"`.
 
-### Um detalhe sobre o que está visível
-
-O detector trabalha no que a câmera de tela enxerga, ou seja, o que está **desenhado na tela**. Se outra janela estiver por cima do alvo, o alvo não existe para o detector. Isso não é defeito: é o que qualquer captura de tela faz.
-
-Se você usa o modo `tela` e o alvo some do nada, geralmente é porque o seu navegador, terminal ou editor passou para a frente. Nesse caso, `window` é o modo certo.
-
-## Como ajustar um perfil para o seu alvo
-
-O fluxo sempre é o mesmo: copia um perfil de exemplo, ajusta o `target`, testa com `check` olhando o `--debug`, repete. Você nunca precisa mexer em Python.
-
-### Se o alvo é claro e redondo
-
-Copie `profiles/circulo_claro.json`. Esse é o caso mais comum e já vem pronto.
-
-### Se o alvo é escuro
-
-Troque `bright` por `dark`. O `v_max` é o brilho máximo, então um alvo preto sobre fundo claro usa algo entre `40` e `90`:
-
-```json
-"target": {
-  "dark": { "v_max": 80, "s_max": 120 },
-  "size": { "min": 45, "max": 240 },
-  "aspect": { "min": 0.65, "max": 1.5 },
-  "fill": { "min": 0.04, "max": 0.4 }
-}
-```
-
-### Se o alvo tem uma cor viva
-
-Cores fortes são descartadas por `bright` e por `dark` porque têm saturação alta. Use uma faixa HSV. Os valores são `[matiz, saturação, valor]`, e o matiz vai de 0 a 179 no OpenCV:
-
-| Cor | `hsv_min` | `hsv_max` |
-|---|---|---|
-| Vermelho | `[0, 140, 140]` | `[10, 255, 255]` |
-| Laranja/amarelo | `[11, 140, 140]` | `[30, 255, 255]` |
-| Verde | `[35, 90, 90]` | `[85, 255, 255]` |
-| Azul | `[100, 90, 90]` | `[130, 255, 255]` |
-| Roxo | `[130, 90, 90]` | `[160, 255, 255]` |
-| Rosa | `[160, 90, 140]` | `[179, 255, 255]` |
-
-Copie `profiles/faixa_hsv.json`, que já usa vermelho, e troque os dois trios.
-
-Para descobrir o matiz de um pixel, use a captura que o próprio programa gravou:
-
-```bash
-python -m wolfs_screen_hitter capture captura.png
-python -m wolfs_screen_hitter crop captura.png matiz.png 640 300 1 1
-```
-
-Um `1x1` de um ponto do alvo. Depois leia o tri HSV com o Python:
-
-```bash
-python -c "import cv2; print(cv2.cvtColor(cv2.imread('matiz.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
-```
-
-### Se o alvo não é redondo
-
-Ajuste `aspect` e espere que o `fill` aceite a forma. Um losango ou um triângulo costuma passar com `aspect` entre `0.5` e `2.0` e `fill` de `0.2` a `0.6`. Se for um retângulo cheio, suba o teto do `fill` para `1.0`.
-
-### Se o alvo é uma letra, número ou ícone
-
-Use o detector `template` em vez do `shape`. O passo a passo completo está em [Como detectar uma letra ou símbolo](#como-detectar-uma-letra-ou-símbolo).
-
-## Receitas para os problemas comuns
-
-Estes são os ajustes que resolvem quase tudo. Sempre comece testando com `check --debug` antes de mudar qualquer número.
-
-**Não acha nada, e eu sei que o alvo está na tela**
-
-Quase sempre é o `work_scale` removendo o alvo. Se o alvo tem menos de uns 40 px, baixe para `0.35` ou coloque `1.0`. Se o alvo é pequeno por natureza, baixe também o `size.min`.
-
-**Acha, mas a caixa cai no lugar errado**
-
-Baixe o teto do `fill` para descartar blocos sólidos, ou suba `aspect` para descartar barras e faixas. Se o alvo verdadeiro é menor que o falso positivo, o detector escolhe o maior por padrão, então aperte o `size.max`.
-
-**Acha um ícone ou botão da interface**
-
-Não mexa no `target`, mexa no `region`. Use `mode: "window"` com `margin`, ou `mode: "fixed"` limitando a área.
-
-**Acha o alvo mas o cursor não vai até ele**
-
-Isso é o programa de destino ignorando movimento instantâneo. Troque `"mode": "teleport"` por `"mode": "smooth"`.
-
-**O alvo pisca e o programa parece perder ele**
-
-Normal. O laço só age quando há detecção. Se quiser suavizar, reduza o `work_scale` para `0.35`: imagem menor significa menos ruído e mais chance de acertar em quadros intermediários.
-
-**A janela do alvo tem bordas ou barras que atrapalham**
-
-Use `margin`. Comece em `0` e aumente aos poucos, conferindo no `--debug` a cada passo.
-
-**Está lento em monitor grande**
-
-Baixe o `work_scale` para `0.35`, ou troque `screen` por `window` com margem, que captura bem menos pixels.
-
-**Quero o cursor mais rápido ou mais lento no `smooth`**
-
-`duration` é o tempo total do movimento, em segundos. `0.08` é rápido, `0.30` é devagar e discreto. `jitter` é o tremor, em pixels.
-
-## Como funciona
-
-```
-wolfs_screen_hitter/
-  win.py        acessos ao Win32: cursor, teclas, envio de movimento
-  capture.py    captura de tela (DXGI, com queda para mss)
-  windows.py    enumeração de janelas e resolução da região de busca
-  detect.py     os dois detectores: forma por cor e template
-  profiles.py   leitura e validação dos perfis JSON
-  pointer.py    modos de movimento do cursor
-  app.py        loop principal e comandos de linha
-```
-
-O ciclo é: capturar a região → detectar → mover o cursor → repetir. A captura DXGI leva cerca de 2 ms e a detecção alguns milissegundos, o que dá mais de cem quadros por segundo na captura de tela inteira.
+---
 
 ## Perfis
 
@@ -267,7 +181,7 @@ Sem `window`, sem nome de programa: o detector varre a tela e acha qualquer alvo
 
 ### Estrutura completa
 
-Todos os campos, com os valores padrão que valem quando você omite:
+Todos os campos, com o valor padrão que vale quando você omite:
 
 ```json
 {
@@ -275,7 +189,7 @@ Todos os campos, com os valores padrão que valem quando você omite:
   "detector": "shape",
 
   "window": {
-    "title": "MeuPrograma",
+    "title": "MyProgram",
     "min_width": 200,
     "min_height": 200
   },
@@ -300,14 +214,11 @@ Todos os campos, com os valores padrão que valem quando você omite:
 
 ### `region` — onde procurar
 
-| `mode` | Significado |
+| Chave | Significado |
 |---|---|
-| `window` | Área da janela de `window.title`. Use `margin` para descartar as bordas. |
-| `screen` | Tela primária inteira. |
-| `virtual` | Todos os monitores juntos. |
-| `fixed` | Retângulo fixo, com `left`, `top`, `width`, `height`. |
-
-O `margin` é o truque mais útil: muitos programas desenham ícones perto das bordas, e `margin: 130` tira eles da consideração.
+| `mode` | `window`, `screen`, `virtual` ou `fixed`, como descrito acima. |
+| `margin` | Pixels descartados de cada borda. Só usado no modo `window`. |
+| `left`, `top`, `width`, `height` | O retângulo, só usado no modo `fixed`. |
 
 ### `target` — o que é o alvo
 
@@ -317,7 +228,7 @@ Dois jeitos de descrever a cor:
 "bright": { "v_min": 150, "s_max": 110 }
 ```
 
-acha pixels claros e pouco saturados. `v_min` é o brilho mínimo, `s_max` é a saturação máxima. Um `s_max` baixo exclui vermelho e verde fortes, então essa combinação acha branco, cinza e bege sem pegar cor viva.
+acha pixels claros e pouco saturados. `v_min` é o brilho mínimo, `s_max` a saturação máxima. Um `s_max` baixo exclui vermelho e verde fortes, então essa combinação acha branco, cinza e bege sem pegar cor viva.
 
 ```json
 "dark": { "v_max": 80, "s_max": 120 }
@@ -330,7 +241,16 @@ acha pixels escuros. Dá para usar `bright` e `dark` juntos: o alvo passa a ser 
 "hsv_max": [12, 255, 255]
 ```
 
-escolhe uma faixa exata de matiz, saturação e valor. `hsv_min` e `hsv_max` substituem `bright`/`dark` quando presentes. Útil para uma cor específica, por exemplo vermelho vivo: matiz de 0 a 12.
+escolhe uma faixa exata de matiz, saturação e valor. `hsv_min` e `hsv_max` substituem `bright`/`dark` quando presentes. Os valores são `[matiz, saturação, valor]`, e o matiz vai de 0 a 179 no OpenCV:
+
+| Cor | `hsv_min` | `hsv_max` |
+|---|---|---|
+| Vermelho | `[0, 140, 140]` | `[10, 255, 255]` |
+| Laranja/amarelo | `[11, 140, 140]` | `[30, 255, 255]` |
+| Verde | `[35, 90, 90]` | `[85, 255, 255]` |
+| Azul | `[100, 90, 90]` | `[130, 255, 255]` |
+| Roxo | `[130, 90, 90]` | `[160, 255, 255]` |
+| Rosa | `[160, 90, 140]` | `[179, 255, 255]` |
 
 Os filtros de forma:
 
@@ -344,16 +264,55 @@ Os filtros de forma:
 
 Quando mais de um candidato passa nos filtros, vence o **maior**.
 
+### Ajustando um perfil
+
+O fluxo é sempre o mesmo: copie um perfil de exemplo, ajuste o `target`, teste com `check` olhando a imagem de `--debug`, repita. Você nunca precisa mexer em Python.
+
+**Alvo claro e redondo.** Copie `profiles/circulo_claro.json`. É o caso mais comum e já vem pronto.
+
+**Alvo escuro.** Troque `bright` por `dark`. O `v_max` é o brilho máximo, então um alvo preto sobre fundo claro usa algo entre `40` e `90`:
+
+```json
+"target": {
+  "dark": { "v_max": 80, "s_max": 120 },
+  "size": { "min": 45, "max": 240 },
+  "aspect": { "min": 0.65, "max": 1.5 },
+  "fill": { "min": 0.04, "max": 0.4 }
+}
+```
+
+**Cor viva.** Cores fortes são descartadas por `bright` e por `dark` porque têm saturação alta. Use uma faixa HSV da tabela acima. Copie `profiles/faixa_hsv.json`, que já usa vermelho, e troque os dois trios.
+
+**Não redondo.** Ajuste `aspect` e espere que o `fill` aceite a forma. Um losango ou um triângulo costuma passar com `aspect` entre `0.5` e `2.0` e `fill` de `0.2` a `0.6`. Se for um retângulo cheio, suba o teto do `fill` para `1.0`.
+
+**Letra, número ou ícone.** Use o detector `template` em vez do `shape`. Veja [Detectar uma letra ou símbolo](#detectar-uma-letra-ou-símbolo).
+
 ### `pointer` — como o cursor se move
 
 | `mode` | Comportamento |
 |---|---|
-| `teleport` | Vai direto para o centro. É o padrão, e o mais rápido. |
+| `teleport` | Vai direto para o centro. Padrão, e o mais rápido. |
 | `smooth` | Percorre um caminho curvo, com tremor e passos irregulares, como uma mão. Use quando o programa de destino ignorar movimento instantâneo. |
 
-Para `smooth` você pode ajustar `duration` (em segundos) e `jitter` (amplitude do tremor, em pixels).
+Para `smooth` você pode ajustar `duration` (tempo total do movimento, em segundos) e `jitter` (amplitude do tremor, em pixels). `0.08` é rápido, `0.30` é devagar e discreto.
 
-## Como detectar uma letra ou símbolo
+### `controls` — quando parar
+
+| Campo | Significado |
+|---|---|
+| `corner_seconds` | Quanto tempo o mouse precisa ficar no canto superior esquerdo para parar. Padrão `1.0`. |
+
+**Esc** e **F12** sempre param o laço, independente deste campo.
+
+### Quando o `shape` vence o `template`
+
+Use `shape` quando o alvo é uma **cor** e o formato não importa muito. É mais rápido e mais estável, porque não depende de template exato nem de escala.
+
+Use `template` quando o que identifica o alvo é a **forma ou o texto**, e a cor pode variar.
+
+---
+
+## Detectar uma letra ou símbolo
 
 O detector `template` funciona com uma imagem de referência. O fluxo completo:
 
@@ -377,7 +336,7 @@ Isso salva um recorte `48x52` daquele ponto. Guarde o original, porque ele é a 
 
 ```json
 {
-  "name": "Letra alvo",
+  "name": "Minha letra",
   "detector": "template",
   "window": { "title": null },
   "region": { "mode": "window", "margin": 0 },
@@ -406,57 +365,115 @@ python -m wolfs_screen_hitter check profiles/letra_template.json --debug out/deb
 
 | Campo | Efeito |
 |---|---|
-| `threshold` | Semelhança mínima para aceitar, de 0 a 1. Comece em `0.8`. Baixe para `0.7` se não achar. Suba para `0.9` se estiver pegando o lugar errado. |
+| `threshold` | Semelhança mínima para aceitar, de 0 a 1. Comece em `0.8`. Baixe para `0.7` se não acha. Suba para `0.9` se está pegando o lugar errado. |
 | `scale_min` / `scale_max` | Faixa de tamanhos a testar. Se o alvo na tela é maior ou menor que o recorte, amplie a faixa. |
 | `scale_steps` | Quantos tamanhos são testados dentro da faixa. Mais passos, mais chance e mais custo. |
 | `work_scale` | Redução para acelerar. Com `0.5`, a tolerância a ruído cai. |
 | `invert` | Inverte a escala de cinza dos dois lados. Use quando o alvo for escuro sobre fundo claro e o `threshold` não passar. |
 
-### Dicas para templates que não funcionam
+### Lendo a cor do seu alvo
 
-- **Corte justo.** Sobras de fundo no template pioram a correspondência. Encoste nas bordas do glifo.
-- **Fundo parecido com o da tela.** Se o template tem fundo branco e a tela é escura, use `invert: true` ou tire o fundo do recorte.
-- **Escala conta.** Se o alvo na tela tem o dobro do tamanho do recorte, ponha `scale_min: 1.5`.
-- **Palavras não são um alvo só.** Faça um template por letra, ou por símbolo, e um perfil para cada. O detector devolve sempre a melhor correspondência da imagem que você deu.
-- **Vários alvos iguias na tela.** O detector devolve sempre a maior pontuação. Se você precisa de um alvo específico, recorte a região em `region.fixed` para fechar o resto da tela.
+Quando você não sabe que cor colocar no perfil, deixe a ferramenta medir. Tire uma captura, recorte um pixel `1x1` do meio do alvo e leia o valor:
 
-## Quando o `shape` é melhor que o `template`
+```bash
+python -m wolfs_screen_hitter capture captura.png
+python -m wolfs_screen_hitter crop captura.png matiz.png 640 300 1 1
+python -c "import cv2; print(cv2.cvtColor(cv2.imread('matiz.png', cv2.IMREAD_COLOR), cv2.COLOR_BGR2HSV)[0][0])"
+```
 
-Use `shape` quando o alvo é uma **cor** e o formato não importa muito. É mais rápido e mais estável, porque não depende de template exato nem de escala.
+A saída é o trio `[matiz, saturação, valor]`. Use direto como `hsv_min`, e como `hsv_max` com os canais aumentados.
 
-Use `template` quando o que identifica o alvo é a **forma ou o texto**, e a cor pode variar.
+---
 
 ## Solução de problemas
 
-**`check` diz que não achou nada**
+Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, aplique a correção.
 
-Grave o debug e veja o que o detector enxerga:
+### Detecção
+
+| Sintoma | Causa | Correção |
+|---|---|---|
+| Não acha nada, e o alvo está na tela | O `work_scale` encolheu o alvo | Baixe para `0.35`, ou coloque `1.0` para alvos pequenos |
+| Não acha nada | Alvo menor que o `size.min` | Baixe o `size.min` |
+| Não acha nada | `bright`/`dark` não descrevem a cor | [Leia o valor real](#lendo-a-cor-do-seu-alvo) e use |
+| Não acha nada, e o alvo é cor viva | `bright` e `dark` descartam pixel saturado | Use `hsv_min`/`hsv_max` |
+| Não acha nada, e o alvo é pequeno ou fino | Filtros de tamanho e preenchimento apertados | Alargue o `size`, afrouxe o `aspect`, baixe o piso do `fill` |
+| A caixa cai num ícone ou botão da interface | O modo tela também vê a sua própria interface | Use `region: "window"` com `margin`, ou `region: "fixed"` |
+| A caixa cai na forma parecida errada | Filtros largos demais | Baixe o teto do `fill`, aperte o `aspect` |
+| Pega o falso positivo maior | Sempre vence a maior pontuação | Baixe o `size.max` para menos que o alvo verdadeiro |
+| O alvo pisca e o programa parece perder ele | A detecção roda nos quadros crus | Baixe o `work_scale` para `0.35` |
+| O alvo parece retângulo, não círculo | `aspect` apertado demais | Alargue o `aspect`, e suba o teto do `fill` para `1.0` se for bloco cheio |
+
+### Localização
+
+| Sintoma | Causa | Correção |
+|---|---|---|
+| O alvo some do nada | Outra janela está por cima | Traga para a frente, ou use `region: "window"` |
+| O alvo aparece em vários lugares | O detector devolve a melhor pontuação | Feche a área com `region: "fixed"` |
+| Bordas e barras da janela atrapalham | A busca inclui a moldura | Use `margin`, comece em `0` e aumente olhando o `--debug` |
+| Está procurando a janela errada | O `title` não bate | Rode `list-windows` e copie o nome exato; títulos batem parcialmente |
+| A região saiu vazia | Nenhuma janela casou, ou o retângulo degenerou | Rode `check` para ver a região resolvida e ajuste `window.title` ou `region` |
+| O alvo está no segundo monitor | `screen` só cobre a primária | Use `region: "virtual"` |
+
+### Movimento
+
+| Sintoma | Causa | Correção |
+|---|---|---|
+| O cursor não se move | Nada foi detectado | Rode `check` primeiro; se não achar, resolva a detecção |
+| O cursor chega no alvo, mas o programa ignora | O programa ignora movimento instantâneo | Coloque `pointer.mode` como `smooth` |
+| Cursor rápido ou lento demais no `smooth` | `duration` e `jitter` | `duration` `0.08` rápido, `0.30` devagar; `jitter` é o tremor em pixels |
+| Não consegue parar o laço | Não são as teclas usuais | **Esc** ou **F12**; ou deixe o mouse no canto superior esquerdo por `corner_seconds` |
+
+### Templates
+
+| Sintoma | Causa | Correção |
+|---|---|---|
+| O template nunca casa | O recorte tem fundo sobrando | Corte rente às bordas do glifo |
+| O template nunca casa | O fundo do template difere do da tela | Use `invert: true`, ou tire o fundo do recorte |
+| O template nunca casa | O alvo na tela tem outro tamanho | Alargue `scale_min`/`scale_max`, aumente `scale_steps` |
+| A palavra não é reconhecida como um alvo só | O detector procura uma única imagem | Um template e um perfil por letra ou símbolo |
+| O template está lento | Muitas escalas em uma região grande | Baixe o `work_scale` para `0.5` ou `0.35` |
+
+### Desempenho e instalação
+
+| Sintoma | Causa | Correção |
+|---|---|---|
+| Lento em monitor grande | Bytes demais para varrer | Baixe o `work_scale` para `0.35`, ou use `window` com margem |
+| `ModuleNotFoundError` | Dependências faltando, ou pasta errada | `pip install -r requirements.txt`, e rode da pasta do projeto |
+| Comando `wolfs-screen-hitter` não encontrado | Pacote não instalado | `pip install -e .`, ou use `python -m wolfs_screen_hitter` |
+| A captura falha ou fica lenta | DXGI indisponível | Cai para `mss` sozinha; se as duas falharem, veja se a tela não está bloqueada |
+
+---
+
+## Testes
+
+Dois scripts, sem framework extra. Nenhum dos dois mexe no seu mouse por padrão: as partes que movem o cursor são opt-in.
 
 ```bash
-python -m wolfs_screen_hitter check profiles/meu.json --debug out/debug.png
+python tests/test_local.py
 ```
 
-Se a caixa verde não aparece, o alvo não passou nos filtros. Alimente `size`, afrouxe `aspect`, aumente `fill` e cheque se `bright`/`dark` descrevem bem a cor.
+Seguro para rodar a qualquer momento. Verifica de forma offline que não existe nenhuma chamada de clique no pacote, que `pyautogui` não é dependência, que os perfis carregam e que detectores, regiões e modos de movimento se comportam. Termina sozinho, com uma linha por verificação.
 
-**Achei o lugar errado**
+```bash
+python tests/test_local.py --executar
+python tests/test_e2e.py --executar
+```
 
-Geralmente é um elemento de interface parecido. Restrinja a região com `region.margin`, ou reduza `fill` se o alvo verdadeiro é mais fino que o falso positivo.
+Estes mexem no seu mouse e focam uma janela por alguns segundos, então nada acontece sem a flag. Com ela, o `test_local.py` acrescenta as duas verificações de movimento reais, e o `test_e2e.py` monta uma cena com um anel claro e um anel vermelho, abre no visualizador do Windows, captura a tela real por DXGI, confirma que detectou o anel claro e ignorou o vermelho, e move o cursor para o centro do alvo.
 
-**O cursor não se move**
+Sem a flag, essas verificações aparecem como `[pulado]` e o resto continua sendo verificado. Use `--executar` quando não estiver digitando, porque o cursor vai saltar pela tela.
 
-Confira a saída de `list-windows` e o `title` no perfil. Títulos só precisam bater parcialmente: `"title": "Paint"` acha `"Paint - imagem.png"`.
+Mais dois scripts mantêm esta documentação honesta. Não precisam de mouse nem de tela:
 
-**O alvo aparece em varios lugares**
+```bash
+python tests/test_readme.py
+python tests/test_readme_citacoes.py
+```
 
-`template` devolve sempre a melhor pontuação. Feche a área de busca com `region.fixed` para isolar.
+O primeiro confere que os dois READMEs têm a mesma estrutura, que todo link interno resolve, e que a instalação é a primeira seção. O segundo confere que todo comando, flag, arquivo, chave de perfil e valor de enum citado nos READMEs existe de fato no código. Se você mexer no código e esquecer a documentação, eles falham.
 
-**Está lento**
-
-Aumente `work_scale` para `0.35` no perfil `shape`, ou reduza `scale_steps` no `template`. A captura DXGI é rápida; o custo está na detecção.
-
-**O programa alvo ignora o movimento do cursor**
-
-Troque `"mode": "teleport"` por `"mode": "smooth"`. Alguns programas registram apenas eventos de movimento encadeados.
+---
 
 ## Privacidade
 
