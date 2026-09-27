@@ -279,6 +279,8 @@ When more than one candidate passes the filters, the **largest** one wins.
 
 The loop is always the same: copy a profile, adjust `target`, test with `check --debug`, repeat. You never need to touch Python.
 
+Save the file as UTF-8. A byte order mark does no harm, so a profile written by the PowerShell 5.1 `Set-Content -Encoding UTF8` loads without complaint.
+
 **Light and round target.** Copy `profiles/circulo_claro.json`. This is the most common case and it is ready as is.
 
 **Dark target.** Replace `bright` with `dark`. `v_max` is the maximum brightness, so a black target on a light background uses something between `40` and `90`:
@@ -453,8 +455,7 @@ Everything that commonly goes wrong, in one table. Find your symptom, read the c
 | Symptom | Cause | Fix |
 |---|---|---|
 | Slow on a large monitor | Too many pixels to search | Lower `work_scale` to `0.35`, or use `window` with a margin |
-| A stack trace ends in `ProfileError` | The profile is missing a field, has the wrong type, or names an unknown detector or `pointer.mode` | Read the last line: it names the field. Compare against a shipped profile |
-| `JSON invalido ... Unexpected UTF-8 BOM` | The file was saved with a byte order mark, which `json` refuses | Save as UTF-8 without BOM. In PowerShell that is `-Encoding utf8NoBOM`, not `-Encoding UTF8` |
+| Prints `Perfil invalido: ...` and exits with code `2` | The profile is missing a field, has the wrong type, or names an unknown detector or `pointer.mode` | The message names the offending field. Compare against a shipped profile |
 | `ModuleNotFoundError` | Dependencies missing, or wrong folder | `pip install -r requirements.txt`, then run from the project folder |
 | `wolfs-screen-hitter` command not found | Package not installed | `pip install -e .`, or use `python -m wolfs_screen_hitter` |
 | Capture is slow or fails | DXGI unavailable | It falls back to `mss` automatically; if both fail, check the screen is not locked |

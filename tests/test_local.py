@@ -185,6 +185,30 @@ try:
 except ValueError as erro:
     checar("rejeita detector", "magia" in str(erro), str(erro)[:48])
 
+print("15. perfil com BOM carrega, e perfil invalido sai limpo")
+com_bom = pathlib.Path("_perfil_bom.json")
+# O BOM e o que o Set-Content -Encoding UTF8 do PowerShell 5.1 escreve.
+com_bom.write_bytes(b"\xef\xbb\xbf" + pathlib.Path("profiles/circulo_claro.json").read_bytes())
+try:
+    carregado = profiles.load(com_bom)
+    checar("perfil com BOM carrega", carregado.get("detector") == "shape", carregado.get("detector"))
+except profiles.ProfileError as erro:
+    checar("perfil com BOM carrega", False, str(erro)[:60])
+com_bom.unlink()
+
+invalido = pathlib.Path("_perfil_invalido.json")
+invalido.write_text('{"detector": "inexistente", "target": {}}', encoding="utf-8")
+resultado = subprocess.run(
+    [sys.executable, "-m", "wolfs_screen_hitter", "check", str(invalido)],
+    capture_output=True,
+    text=True,
+)
+saida = resultado.stdout + resultado.stderr
+checar("perfil invalido sai com codigo 2", resultado.returncode == 2, str(resultado.returncode))
+checar("perfil invalido sem stack trace", "Traceback" not in saida, saida.strip()[:70])
+checar("perfil invalido nomeia o campo", "detector" in saida and "inexistente" in saida)
+invalido.unlink()
+
 print()
 if pulados:
     print(f"{len(pulados)} verificacao(oes) pulada(s): {pulados}")

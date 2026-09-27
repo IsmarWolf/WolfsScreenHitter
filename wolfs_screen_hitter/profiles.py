@@ -10,7 +10,6 @@ from .detect import DETECTORS
 PACKAGE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = PACKAGE_DIR.parent
 DEFAULT_PROFILE_DIR = PROJECT_DIR / "profiles"
-TEMPLATE_DIR = DEFAULT_PROFILE_DIR / "templates"
 
 DETECTOR_NAMES = ", ".join(sorted(DETECTORS))
 
@@ -46,7 +45,9 @@ def load(path):
         raise ProfileError(f"Perfil nao encontrado: {caminho}")
 
     try:
-        bruto = json.loads(caminho.read_text(encoding="utf-8"))
+        # utf-8-sig le UTF-8 normal e tambem descarta a marca de ordem de
+        # byte, que e o que o PowerShell 5.1 escreve por padrao.
+        bruto = json.loads(caminho.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as erro:
         raise ProfileError(f"JSON invalido em {caminho.name}: {erro}") from erro
 

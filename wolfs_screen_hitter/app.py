@@ -370,6 +370,16 @@ def main(argv=None):
     parser = _construir_parser()
     args = parser.parse_args(argv)
 
+    try:
+        return _despachar(args, parser)
+    except profiles.ProfileError as erro:
+        # Perfil invalido e erro de digitacao do usuario, nao um bug: mostra
+        # a mensagem limpa em vez de entregar uma stack trace.
+        print(f"Perfil invalido: {erro}")
+        return 2
+
+
+def _despachar(args, parser):
     if args.comando == "run":
         if args.dry_run:
             return comando_check(args.perfil)

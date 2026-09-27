@@ -280,6 +280,8 @@ Quando mais de um candidato passa nos filtros, vence o **maior**.
 
 O fluxo é sempre o mesmo: copie um perfil de exemplo, ajuste o `target`, teste com `check` olhando a imagem de `--debug`, repita. Você nunca precisa mexer em Python.
 
+Salve o arquivo em UTF-8. A marca de ordem de byte não atrapalha, então um perfil escrito pelo `Set-Content -Encoding UTF8` do PowerShell 5.1 carrega sem reclamar.
+
 **Alvo claro e redondo.** Copie `profiles/circulo_claro.json`. É o caso mais comum e já vem pronto.
 
 **Alvo escuro.** Troque `bright` por `dark`. O `v_max` é o brilho máximo, então um alvo preto sobre fundo claro usa algo entre `40` e `90`:
@@ -454,8 +456,7 @@ Tudo que costuma dar errado, em uma tabela só. Ache seu sintoma, leia a causa, 
 | Sintoma | Causa | Correção |
 |---|---|---|
 | Lento em monitor grande | Bytes demais para varrer | Baixe o `work_scale` para `0.35`, ou use `window` com margem |
-| A stack trace termina em `ProfileError` | O perfil está sem um campo, com o tipo errado, ou cita um `detector` ou `pointer.mode` inválido | Leia a última linha: ela nomeia o campo. Compare com um perfil de exemplo |
-| `JSON invalido ... Unexpected UTF-8 BOM` | O arquivo foi salvo com marca de ordem de byte, que o `json` recusa | Salve como UTF-8 sem BOM. No PowerShell é `-Encoding utf8NoBOM`, e não `-Encoding UTF8` |
+| Imprime `Perfil invalido: ...` e sai com código `2` | O perfil está sem um campo, com o tipo errado, ou cita um `detector` ou `pointer.mode` inválido | A mensagem nomeia o campo problemático. Compare com um perfil de exemplo |
 | `ModuleNotFoundError` | Dependências faltando, ou pasta errada | `pip install -r requirements.txt`, e rode da pasta do projeto |
 | Comando `wolfs-screen-hitter` não encontrado | Pacote não instalado | `pip install -e .`, ou use `python -m wolfs_screen_hitter` |
 | A captura falha ou fica lenta | DXGI indisponível | Cai para `mss` sozinha; se as duas falharem, veja se a tela não está bloqueada |
