@@ -26,12 +26,16 @@ _PRIMEIRO = "identidade"
 _RESPIRO = tokens.px(tokens.ESPACO_1) // 2
 
 
-def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None):
+def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, pasta=""):
     """Desenha os grupos visiveis e devolve (linhas, acordeoes).
 
     Recebe o dicionario achatado que a janela mantem, e nao o perfil
     aninhado: assim a tela mostra exatamente o que esta em edicao, sem
     passar por uma conversao que poderia esconder um valor.
+
+    pasta e onde o perfil esta. Serve para os seletores de arquivo abrirem
+    o dialogo no lugar certo, e nada mais: quem escolhe o arquivo continua
+    sendo o usuario.
     """
     contexto = model.contexto_dos_campos(campos)
     linhas = {}
@@ -50,7 +54,11 @@ def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None):
             if not campo.visivel(contexto):
                 continue
             linha = LinhaCampo(
-                acordeao.conteudo, campo, campos.get(campo.caminho, ""), ao_mudar
+                acordeao.conteudo,
+                campo,
+                campos.get(campo.caminho, ""),
+                ao_mudar,
+                pasta=pasta,
             )
             linha.pack(fill="x", pady=_RESPIRO)
             linhas[campo.caminho] = linha

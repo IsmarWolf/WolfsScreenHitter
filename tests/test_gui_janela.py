@@ -214,6 +214,59 @@ with tempfile.TemporaryDirectory() as pasta:
     checar("nome reservado ganha prefixo", nome_de_arquivo("CON") == "_CON", nome_de_arquivo("CON"))
     checar("vazio nao vira arquivo sem nome", nome_de_arquivo("   ") == "perfil", nome_de_arquivo("   "))
 
+    print("7d. o campo de template tem botao de arquivo e guarda caminho relativo")
+    import wolfs_screen_hitter.gui.componentes.campo as modulo_campo
+
+    app._ao_mudar("detector", "template")
+    app.update()
+    linha = app.linhas["target.template"]
+    checar(
+        "o botao de arquivo entrou na moldura da entrada",
+        getattr(linha, "_abrir", None) is not None,
+        type(getattr(linha, "_abrir", None)).__name__,
+    )
+    checar(
+        "o botao e filho da mesma moldura, e nao um botao solto na linha",
+        linha._abrir.master is linha._moldura,
+        "",
+    )
+    checar("campo comum nao ganha botao de arquivo", not hasattr(app.linhas["name"], "_abrir"), "")
+
+    png = pathlib.Path(pasta) / "glifo.png"
+    png.write_bytes(b"conteudo qualquer, o teste nao abre a imagem")
+
+    class _Dialogo:
+        @staticmethod
+        def askopenfilename(**_opcoes):
+            return str(png)
+
+    dialogo_original = modulo_campo.filedialog
+    modulo_campo.filedialog = _Dialogo
+    try:
+        linha._escolher_arquivo()
+    finally:
+        modulo_campo.filedialog = dialogo_original
+    app.update()
+    checar(
+        "o campo recebeu o caminho em relacao a pasta do perfil",
+        app.estado.texto("target.template") == "glifo.png",
+        app.estado.texto("target.template"),
+    )
+    checar("a escolha conta como edicao", app.estado.sujo, str(app.estado.sujo))
+
+    modulo_campo.filedialog = _Dialogo
+    try:
+        linha._escolher_arquivo()
+    finally:
+        modulo_campo.filedialog = dialogo_original
+    checar(
+        "o arquivo continua no campo depois do redesenho",
+        app.linhas["target.template"].texto() == "glifo.png",
+        app.linhas["target.template"].texto(),
+    )
+    app._ao_mudar("detector", "shape")
+    app.update()
+
     print("8. o botao afunda ao clicar e dispara o comando")
     from wolfs_screen_hitter.gui.componentes import Botao
 

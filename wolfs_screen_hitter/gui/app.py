@@ -418,6 +418,7 @@ class Aplicacao(tk.Tk):
                 self._ao_mudar,
                 aberto=self._grupo_aberto,
                 ao_grupo=self._so_um,
+                pasta=str(self.estado.diretorio),
             )
         finally:
             self._reconstruindo = False

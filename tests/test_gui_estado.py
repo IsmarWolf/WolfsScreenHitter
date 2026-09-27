@@ -77,6 +77,18 @@ checar("regiao muda o contexto", est.definir("region.mode", "fixed") is True)
 checar("cursor muda o contexto", est.definir("pointer.mode", "smooth") is True)
 checar("campo comum nao muda", est.definir("target.size.min", "50") is False)
 
+# Um caminho de template nao tem nada a ver com o que aparece na tela. Se
+# ele contasse como mudanca de contexto, digitar o arquivo reconstruiria o
+# formulario inteiro, e o campo-escolher-arquivo sumiria debaixo do dedo
+# no momento em que a pessoa terminasse de escrever.
+est = controlador.Estado()
+checar(
+    "escolher o template nao muda o contexto",
+    est.definir("target.template", "glifo.png") is False,
+    str(model.contexto_dos_campos(est.campos)),
+)
+checar("o caminho mesmo assim foi guardado", est.texto("target.template") == "glifo.png", "")
+
 print("5. o que o formulario mostra e o que esta em edicao")
 est = controlador.Estado()
 est.definir("detector", "template")

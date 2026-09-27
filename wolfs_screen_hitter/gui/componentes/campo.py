@@ -16,6 +16,8 @@ triangulo desenhado, e a lista de opcoes e um menu do proprio Tk.
 """
 
 import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog
 
 from ..design import tokens, tipografia
 
@@ -29,11 +31,12 @@ def para_texto(valor):
 class LinhaCampo(tk.Frame):
     """Rotulo, entrada e dica de um campo, no estilo do design system."""
 
-    def __init__(self, pai, campo, valor, ao_mudar, fundo=tokens.AMARELO_PASTEL):
+    def __init__(self, pai, campo, valor, ao_mudar, fundo=tokens.AMARELO_PASTEL, pasta=""):
         super().__init__(pai, bg=fundo, bd=0, highlightthickness=0)
         self.campo = campo
         self.ao_mudar = ao_mudar
         self.fundo = fundo
+        self.pasta = pasta
         self.erro = None
         self._trace = None
 
@@ -122,6 +125,7 @@ class LinhaCampo(tk.Frame):
 
     def _montar_texto(self, valor):
         moldura = self._caixa()
+        self._moldura = moldura
         self.entrada = tk.Entry(
             moldura,
             font=tipografia.fonte("corpo"),
@@ -140,10 +144,101 @@ class LinhaCampo(tk.Frame):
         )
         self.entrada.insert(0, valor)
         self.entrada.pack(
-            padx=tokens.px(tokens.BORDA_FINA), pady=tokens.px(tokens.BORDA_FINA)
+            side="left", padx=tokens.px(tokens.BORDA_FINA),
+            pady=tokens.px(tokens.BORDA_FINA)
         )
         self.entrada.bind("<KeyRelease>", lambda _e: self._mudou())
         self.entrada.bind("<FocusOut>", lambda _e: self._mudou())
+
+        if self.campo.seletor == "arquivo":
+            self._montar_arquivo()
+
+    def _montar_arquivo(self):
+        """O botao de escolher o arquivo mora dentro da moldura da entrada,
+        e nao ao lado dela, para que pareca parte do campo e nao um botao
+        solto na linha. E um Canvas em vez de um Botao porque aqui o
+        desenho e um quadrado do mesmo tamanho da seta do seletor de
+        opcoes, e nao um texto."""
+        self._abrir = tk.Canvas(
+            self._moldura,
+            width=tokens.px(30),
+            height=tokens.px(26),
+            bg=tokens.BRANCO,
+            bd=0,
+            highlightthickness=0,
+            cursor="hand2",
+            takefocus=1,
+        )
+        self._abrir.pack(
+            side="left", padx=(0, tokens.px(tokens.BORDA_FINA)),
+            pady=tokens.px(tokens.BORDA_FINA),
+        )
+        self._desenhar_abrir(False)
+        self._abrir.bind("<Button-1>", lambda _e: self._escolher_arquivo())
+        self._abrir.bind("<Enter>", lambda _e: self._desenhar_abrir(True))
+        self._abrir.bind("<Leave>", lambda _e: self._desenhar_abrir(False))
+
+    def _desenhar_abrir(self, sobre=False):
+        self._abrir.delete("tudo")
+        self._abrir.configure(bg=tokens.AMARELO if sobre else tokens.BRANCO)
+        largura, altura = tokens.px(16), tokens.px(12)
+        x, y = (tokens.px(30) - largura) // 2, (tokens.px(26) - altura) // 2
+        # A pasta: um retangulo com a aba, do mesmo vocabulario de formas
+        # usadas no resto da tela.
+        self._abrir.create_rectangle(
+            x, y + tokens.px(3), x + largura, y + altura,
+            fill=tokens.AMARELO if sobre else tokens.BRANCO,
+            outline=tokens.PRETO,
+            width=tokens.px(tokens.BORDA_FINA),
+        )
+        self._abrir.create_rectangle(
+            x, y, x + tokens.px(7), y + tokens.px(4),
+            fill=tokens.AMARELO if sobre else tokens.BRANCO,
+            outline=tokens.PRETO,
+            width=tokens.px(tokens.BORDA_FINA),
+        )
+
+    def _escolher_arquivo(self):
+        """Grava o caminho escolhido no campo, pelo mesmo caminho de
+        qualquer outro texto digitado, para a validacao e o redesenho nao
+        precisarem saber que o valor veio daqui."""
+        escolhido = filedialog.askopenfilename(
+            title="Escolher o template",
+            initialdir=self._onde_procurar(),
+            filetypes=[("Imagem PNG", "*.png"), ("Todas as imagens", "*.png *.jpg *.bmp")],
+        )
+        if not escolhido:
+            return
+        self.definir(self._caminho_relativo(escolhido))
+        self.ao_mudar(self.campo.caminho, self.texto())
+
+    def _onde_procurar(self):
+        """O dialogo abre onde o arquivo esta, e nao na pasta do perfil."""
+        atual = (self.texto() or "").strip()
+        if atual:
+            base = Path(atual)
+            pasta = base.parent if base.parent != Path("") else None
+            if pasta and pasta.is_dir():
+                return str(pasta)
+        return self.pasta or None
+
+    def _caminho_relativo(self, caminho):
+        """Se o PNG estiver na pasta do perfil, guarda so o nome.
+
+        O perfil guarda o caminho, nao a imagem. Com o caminho relativo, o
+        JSON continua valendo se a pasta inteira for movida ou copiada para
+        outro lugar -- que e o caso normal de quem compartilha um perfil. De
+        fora da pasta do perfil nao ha caminho relativo que faca sentido, e
+        ai vai o caminho absoluto.
+        """
+        alvo = Path(caminho).resolve()
+        if self.pasta:
+            base = Path(self.pasta).resolve()
+            try:
+                return alvo.relative_to(base).as_posix()
+            except ValueError:
+                pass
+        return str(alvo)
 
     def _montar_seletor(self, valor):
         moldura = tk.Frame(self, bg=tokens.PRETO, bd=0, highlightthickness=0)

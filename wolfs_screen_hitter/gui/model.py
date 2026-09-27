@@ -42,6 +42,11 @@ class Campo:
     maximo: float = None
     # Quando preenchido, o campo so aparece se este predicado for verdadeiro.
     aparece: tuple = ()
+    # Como o campo se escolhe na tela, quando digitar o caminho na mao e
+    # ruim. Por enquanto so "arquivo", que e o seletor de PNG. Fica
+    # declarado aqui, e nao no componente, porque e o perfil que diz que
+    # aquele caminho e um arquivo -- a tela so desenha o botao.
+    seletor: str = ""
 
     def visivel(self, contexto):
         return all(PERFILADO[chave](contexto) for chave, _ in self.aparece)
@@ -51,14 +56,12 @@ class Campo:
 # dicionario a cada mudanca e redesenha a partir dele.
 def contexto_de(perfil):
     perfil = perfil or {}
-    alvo = perfil.get("target") or {}
     regiao = perfil.get("region") or {}
     ponteiro = perfil.get("pointer") or {}
     return {
         "detector": perfil.get("detector") or "shape",
         "regiao": regiao.get("mode", "window"),
         "cursor": ponteiro.get("mode", "teleport"),
-        "template": bool(alvo.get("template")),
     }
 
 
@@ -178,7 +181,8 @@ GRUPOS = (
                 "Arquivo do template",
                 "texto",
                 "",
-                dica="caminho de um PNG, relativo ao perfil ou absoluto",
+                dica="png do alvo. o nome fica guardado, nao a imagem",
+                seletor="arquivo",
             ),
             Campo("target.threshold", "Limiar", "float", 0.8, minimo=0.0, maximo=1.0,
                   dica="0.80 por padrao; abaixe se a imagem nunca casar"),
@@ -346,12 +350,17 @@ def perfil_para_campos(perfil):
 
 def contexto_dos_campos(campos):
     """Deduz o contexto antes de gravar, porque detector, regiao e cursor
-    sao eles mesmos campos do formulario."""
+    sao eles mesmos campos do formulario.
+
+    Sao so as tres chaves que algum filtro de PERFILADO le. Um caminho de
+    template nao entra aqui: nada depende dele para aparecer ou sumir, e
+    se entrasse, digitar o nome do arquivo reconstruiria o formulario
+    inteiro uma vez so, sem nenhuma mudanca na tela.
+    """
     return {
         "detector": (campos.get("detector") or "shape").strip() or "shape",
         "regiao": (campos.get("region.mode") or "window").strip() or "window",
         "cursor": (campos.get("pointer.mode") or "teleport").strip() or "teleport",
-        "template": bool((campos.get("target.template") or "").strip()),
     }
 
 
