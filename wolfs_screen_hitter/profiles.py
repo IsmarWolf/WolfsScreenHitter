@@ -1,6 +1,7 @@
 """Carregamento e validacao de perfis."""
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -106,6 +107,40 @@ def validate(perfil):
             )
 
     return perfil
+
+
+def save(perfil, caminho=None):
+    """Grava um perfil em JSON e devolve o caminho final.
+
+    Chamar validate antes de gravar e o que impede a interface de salvar
+    um perfil que a CLI recusaria em seguida. As chaves _path e _base_dir
+    sao informacoes de leitura, nao fazem parte do arquivo.
+    """
+    destino = Path(caminho) if caminho else perfil.get("_path")
+
+    if not destino:
+        raise ProfileError("Diga onde salvar: o perfil nao tem caminho de origem.")
+
+    limpo = {
+        chave: valor
+        for chave, valor in perfil.items()
+        if chave not in ("_path", "_base_dir")
+    }
+    validate(dict(limpo, _path=str(destino), _base_dir=str(Path(destino).parent)))
+
+    destino = Path(destino)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+
+    texto = json.dumps(limpo, indent=2, ensure_ascii=False) + "\n"
+    # UTF-8 sem BOM: o PowerShell 5.1 le esse arquivo igual, e o proprio
+    # PowerShell 5.1 nao e quem vai reescrever ele. Escrever em arquivo
+    # temporario e trocar no lugar evita deixar um perfil pela metade se o
+    # programa fechar no meio da escrita.
+    temporario = destino.with_name(destino.name + ".tmp")
+    temporario.write_text(texto, encoding="utf-8")
+    os.replace(temporario, destino)
+
+    return destino
 
 
 def list_profiles(diretorio=None):
