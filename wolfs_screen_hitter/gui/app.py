@@ -31,13 +31,18 @@ from . import model
 from .componentes import Botao, Divisor
 from .componentes.dialogo import pedir_texto
 from .componentes.seletor import SeletorPerfil
-
+from .componentes.seletor_regiao import escolher_regiao
 from .design import formas, tokens, tipografia
 from .widgets import montar_formulario
 
 _LARGURA = 1160
 _ALTURA = 720
 _SELETOR = 260
+
+# A ordem dos quatro numeros de uma regiao e a ordem de resolve_region, e
+# tambem a ordem que o seletor devolve.
+_CAMPOS_DE_REGIAO = ("region.left", "region.top", "region.width", "region.height")
+
 
 # O que o Windows aceita em nome de arquivo, e o que o perfil vai ter que
 # sobreviver dentro. Tudo que nao for letra, numero, ponto, hifen ou
@@ -394,6 +399,36 @@ class Aplicacao(tk.Tk):
 
     # -- formulario ------------------------------------------------------
 
+    def _comandos_de_seletor(self):
+        """O que cada botao de seletor do formulario faz.
+
+        Montado como dicionario, e nao espalhado em if dentro da montagem,
+        porque quem desenha o botao nao deveria saber o que ele faz: ele so
+        precisa de um comando para o seletor declarado no modelo.
+        """
+        return {"escolher_regiao": self._selecionar_regiao}
+
+    def _selecionar_regiao(self):
+        """Pede a area na tela e escreve os quatro numeros da regiao.
+
+        Arrastar a regiao define tambem o modo: quem acabou de escolher um
+        retangulo quer "fixed", e nao "screen" ou "janela". Deixar o modo
+        como estava faria os quatro numeros aparecerem na tela e nao serem
+        usados, que e a pior das duas metades.
+        """
+        regiao = escolher_regiao(self)
+        if regiao is None:
+            self.avisar("SELECAO CANCELADA. A REGIAO FICOU COMO ESTAVA.")
+            return
+
+        for caminho, valor in zip(_CAMPOS_DE_REGIAO, regiao):
+            self.estado.definir(caminho, str(valor))
+        self.estado.definir("region.mode", "fixed")
+        self._grupo_aberto = "regiao"
+        self._redesenhar()
+        esquerda, topo, largura, altura = regiao
+        self.avisar(f"REGIAO {largura} x {altura} EM ({esquerda}, {topo})")
+
     def _ao_mudar(self, campo, texto):
         if self._reconstruindo:
             return
@@ -419,6 +454,7 @@ class Aplicacao(tk.Tk):
                 aberto=self._grupo_aberto,
                 ao_grupo=self._so_um,
                 pasta=str(self.estado.diretorio),
+                acoes=self._comandos_de_seletor(),
             )
         finally:
             self._reconstruindo = False
@@ -450,9 +486,18 @@ class Aplicacao(tk.Tk):
         self._grupo_aberto = acordeao.identificador
 
     def _revelar_grupo_de(self, caminho):
-        """Abre o grupo de um campo, para o erro aparecer na tela."""
+        """Abre o grupo de um campo, para o erro aparecer na tela.
+
+        Nem toda linha do grupo e um campo: o botao de seletor tambem mora
+        ali dentro, e nao tem campo nenhum.
+        """
         for grupo in self.grupos.values():
-            if caminho in (linha.campo.caminho for linha in grupo.conteudo.winfo_children()):
+            caminhos = (
+                linha.campo.caminho
+                for linha in grupo.conteudo.winfo_children()
+                if getattr(linha, "campo", None) is not None
+            )
+            if caminho in caminhos:
                 if not grupo.esta_aberto():
                     self._so_um(grupo)
                 return

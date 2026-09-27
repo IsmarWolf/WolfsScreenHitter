@@ -23,6 +23,11 @@ from ..design import tokens, tipografia
 
 VERDADEIRO = ("1", "true", "sim", "s", "yes", "verdadeiro")
 
+# Quantos caracteres de rotulo cabem na coluna da esquerda. E um numero de
+# caracteres e nao de pixel porque o Tk e quem decide a largura, e qualquer
+# linha de acao do formulario precisa do mesmo recuo -- ver linha_acao.
+COLUNA_ROTULO = 22
+
 
 def para_texto(valor):
     return "sim" if valor else "nao"
@@ -47,7 +52,7 @@ class LinhaCampo(tk.Frame):
             bg=fundo,
             fg=tokens.PRETO,
             anchor="w",
-            width=22,
+            width=COLUNA_ROTULO,
         )
         self._rotulo.pack(
             side="left", padx=(0, tokens.px(tokens.ESPACO_2)), pady=tokens.px(tokens.ESPACO_1)

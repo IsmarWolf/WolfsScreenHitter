@@ -18,6 +18,7 @@ pular a cada clique.
 
 from . import model
 from .componentes import Acordeao, LinhaCampo
+from .componentes.linha_acao import LinhaAcao
 from .design import tokens
 
 # O grupo que nasce aberto quando ainda nao ha preferencia do usuario.
@@ -26,7 +27,7 @@ _PRIMEIRO = "identidade"
 _RESPIRO = tokens.px(tokens.ESPACO_1) // 2
 
 
-def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, pasta=""):
+def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, pasta="", acoes=None):
     """Desenha os grupos visiveis e devolve (linhas, acordeoes).
 
     Recebe o dicionario achatado que a janela mantem, e nao o perfil
@@ -36,7 +37,13 @@ def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, past
     pasta e onde o perfil esta. Serve para os seletores de arquivo abrirem
     o dialogo no lugar certo, e nada mais: quem escolhe o arquivo continua
     sendo o usuario.
+
+    acoes mapeia o seletor de um botao para o comando da janela. Um botao
+    cujo seletor nao esta no dicionario nao e desenhado, e nao e erro: quem
+    chamador nao sabe fazer aquilo e prefere um grupo sem o botao a um
+    botao quebrado.
     """
+    acoes = acoes or {}
     contexto = model.contexto_dos_campos(campos)
     linhas = {}
     grupos = {}
@@ -49,6 +56,14 @@ def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, past
         acordeao = Acordeao(quadro, identificador, titulo, ao_mudar=ao_grupo)
         acordeao.pack(fill="x", pady=(0, tokens.px(tokens.ESPACO_2)))
         grupos[identificador] = acordeao
+
+        for acao in model.ACOES.get(identificador, ()):
+            comando = acoes.get(acao.seletor)
+            if comando is None:
+                continue
+            LinhaAcao(acordeao.conteudo, acao, comando).pack(
+                fill="x", pady=_RESPIRO
+            )
 
         for campo in grupo:
             if not campo.visivel(contexto):

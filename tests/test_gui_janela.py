@@ -267,6 +267,149 @@ with tempfile.TemporaryDirectory() as pasta:
     app._ao_mudar("detector", "shape")
     app.update()
 
+    print("7e. o botao de selecionar na tela escreve a regiao")
+    from wolfs_screen_hitter.gui.componentes import seletor_regiao
+
+    app._so_um(app.grupos["regiao"])
+    app.update()
+    acoes = [
+        linha
+        for linha in app.grupos["regiao"].conteudo.winfo_children()
+        if type(linha).__name__ == "LinhaAcao"
+    ]
+    checar("o grupo da regiao tem uma linha de acao", len(acoes) == 1, str(len(acoes)))
+    checar(
+        "a acao e a de escolher a regiao",
+        [a.acao.seletor for a in acoes] == ["escolher_regiao"],
+        str([a.acao.seletor for a in acoes]),
+    )
+    checar(
+        "a acao nao entra no dicionario de campos",
+        "escolher_regiao" not in app.linhas,
+        "",
+    )
+
+    import wolfs_screen_hitter.gui.app as modulo_app
+
+    seletor_original = modulo_app.escolher_regiao
+    modulo_app.escolher_regiao = lambda _pai: (100, 50, 640, 480)
+    try:
+        app._selecionar_regiao()
+    finally:
+        modulo_app.escolher_regiao = seletor_original
+    app.update()
+    checar("o modo virou fixed", app.estado.texto("region.mode") == "fixed", app.estado.texto("region.mode"))
+    for campo, valor in (
+        ("region.left", "100"),
+        ("region.top", "50"),
+        ("region.width", "640"),
+        ("region.height", "480"),
+    ):
+        checar(f"{campo} recebeu o valor arrastado", app.estado.texto(campo) == valor, app.estado.texto(campo))
+    checar(
+        "os quatro numeros apareceram na tela",
+        all(c in app.linhas for c in ("region.left", "region.top", "region.width", "region.height")),
+        "",
+    )
+    checar("a tela mostra a largura escolhida", app.linhas["region.width"].texto() == "640", app.linhas["region.width"].texto())
+    checar("a regiao arrastada conta como edicao", app.estado.sujo, str(app.estado.sujo))
+
+    before = dict(app.estado.campos)
+    modulo_app.escolher_regiao = lambda _pai: None
+    try:
+        app._selecionar_regiao()
+    finally:
+        modulo_app.escolher_regiao = seletor_original
+    app.update()
+    checar("cancelar nao mexe em nada", dict(app.estado.campos) == before, "")
+    checar("cancelar avisa", "CANCEL" in app.mensagem.get().upper(), app.mensagem.get())
+
+    print("7f. o seletor mede a tela igual ao resto do programa")
+    from wolfs_screen_hitter import windows
+
+    seletor = seletor_regiao.SeletorRegiao(app)
+    checar(
+        "a tela principal e a mesma que o modo 'screen' usa",
+        seletor.principal == windows.screen(),
+        f"{seletor.principal} vs {windows.screen()}",
+    )
+    checar("o fator Tk/Win32 e positivo", seletor.fator > 0, str(seletor.fator))
+    x, y = seletor.para_win32(0, 0)
+    checar(
+        "o canto do canvas e o canto da tela principal",
+        (x, y) == (seletor.principal[0], seletor.principal[1]),
+        f"{x},{y}",
+    )
+    x, y = seletor.para_win32(30, 20)
+    checar(
+        "o deslocamento no canvas vira o mesmo deslocamento na tela",
+        (x, y) == (seletor.principal[0] + 30, seletor.principal[1] + 20),
+        f"{x},{y}",
+    )
+    largura_canvas = round(seletor.principal[2] * seletor.fator)
+    altura_canvas = round(seletor.principal[3] * seletor.fator)
+    x, y = seletor.para_win32(largura_canvas, altura_canvas)
+    checar(
+        "a borda do canvas e a borda da tela, sem sobra",
+        (x, y) == (seletor.principal[0] + seletor.principal[2], seletor.principal[1] + seletor.principal[3]),
+        f"{x},{y}",
+    )
+
+    print("7g. arrastar na camada devolve o retangulo arrastado")
+
+    def _camada():
+        """A camada como o esperar() monta: janela, eventos e update.
+
+        O grab e de esperar(), e nao entra: um grab pendurado em uma janela
+        destruida sequestraria o mouse dos testes seguintes. O que garante
+        o teclado e o focus_force de _ligar(), e e isso que se quer medir.
+        """
+        montada = seletor_regiao.SeletorRegiao(app)
+        montada._montar()
+        montada._ligar()
+        app.update()
+        return montada
+
+    arraste = _camada()
+    arraste.quadro.event_generate("<ButtonPress-1>", x=100, y=60)
+    arraste.quadro.event_generate("<B1-Motion>", x=400, y=260)
+    arraste.quadro.event_generate("<ButtonRelease-1>", x=400, y=260)
+    app.update()
+    checar("soltar com retangulo fecha a camada e devolve a regiao", arraste.regiao is not None, str(arraste.regiao))
+    if arraste.regiao:
+        esquerda, topo, largura, altura = arraste.regiao
+        checar("a largura e a distancia entre as duas pontas", largura == 300, str(largura))
+        checar("a altura e a distancia entre as duas pontas", altura == 200, str(altura))
+        checar(
+            "o canto medido em relacao a tela principal",
+            (esquerda, topo) == (arraste.principal[0] + 100, arraste.principal[1] + 60),
+            f"{esquerda},{topo}",
+        )
+    checar("a camada foi destruida", not arraste.camada.winfo_exists(), "")
+
+    arraste = _camada()
+    arraste.quadro.event_generate("<ButtonPress-1>", x=500, y=400)
+    arraste.quadro.event_generate("<B1-Motion>", x=200, y=100)
+    arraste.quadro.event_generate("<ButtonRelease-1>", x=200, y=100)
+    app.update()
+    checar("arrastar na diagonal invertida tambem vale", arraste.regiao is not None, str(arraste.regiao))
+    if arraste.regiao:
+        esquerda, topo, largura, altura = arraste.regiao
+        checar("o canto e o menor dos dois pontos", (esquerda, topo) == (arraste.principal[0] + 200, arraste.principal[1] + 100), f"{esquerda},{topo}")
+        checar("largura e altura seguem o menor", (largura, altura) == (300, 300), f"{largura}x{altura}")
+
+    arraste = _camada()
+    arraste.quadro.event_generate("<ButtonPress-1>", x=300, y=300)
+    arraste.quadro.event_generate("<B1-Motion>", x=302, y=301)
+    arraste.quadro.event_generate("<ButtonRelease-1>", x=302, y=301)
+    app.update()
+    checar("clique sem arrastar nao escolhe regiao", arraste.regiao is None, str(arraste.regiao))
+    checar("a camada continua aberta para tentar de novo", arraste.camada.winfo_exists(), "")
+    arraste.quadro.event_generate("<Escape>")
+    app.update()
+    checar("Esc fecha a camada", not arraste.camada.winfo_exists(), "")
+    checar("Esc devolveu nada", arraste.regiao is None, "")
+
     print("8. o botao afunda ao clicar e dispara o comando")
     from wolfs_screen_hitter.gui.componentes import Botao
 

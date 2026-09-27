@@ -74,6 +74,35 @@ PERFILADO = {
 }
 
 
+@dataclass(frozen=True)
+class Acao:
+    """Um botao de tela dentro de um grupo.
+
+    Nao e um Campo porque nao tem valor: o botao nao grava nada sozinho, ele
+    so escreve nos campos que o grupo ja tem. Se fosse um Campo, ele
+    entraria na validacao e na gravacao, e o perfil passaria a carregar um
+    botao dentro do JSON.
+    """
+
+    rotulo: str
+    seletor: str
+    dica: str = ""
+
+
+# Botoes por grupo, mostrados acima dos campos do grupo. Vive fora de GRUPOS
+# por causa do mesmo motivo: a tela pode ter botao, o perfil nao.
+ACOES = {
+    "regiao": (
+        Acao(
+            "Selecionar na tela",
+            "escolher_regiao",
+            dica="cobre a tela principal, voce arrasta em volta do alvo e os "
+            "quatro numeros entram sozinhos",
+        ),
+    ),
+}
+
+
 # --------------------------------------------------------------------------
 # Grupos de campos. A ordem aqui e a ordem em que aparecem na tela.
 # Cada grupo tem uma condicao propria, alem da condicao de cada campo:
