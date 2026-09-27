@@ -21,13 +21,11 @@ from .componentes import Acordeao, LinhaCampo
 from .componentes.linha_acao import LinhaAcao
 from .design import tokens
 
-# O grupo que nasce aberto quando ainda nao ha preferencia do usuario.
-_PRIMEIRO = "identidade"
-
 _RESPIRO = tokens.px(tokens.ESPACO_1) // 2
 
 
-def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, pasta="", acoes=None):
+def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, pasta="", acoes=None,
+                      nivel=None):
     """Desenha os grupos visiveis e devolve (linhas, acordeoes).
 
     Recebe o dicionario achatado que a janela mantem, e nao o perfil
@@ -42,22 +40,31 @@ def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, past
     cujo seletor nao esta no dicionario nao e desenhado, e nao e erro: quem
     chamador nao sabe fazer aquilo e prefere um grupo sem o botao a um
     botao quebrado.
+
+    nivel escolhe a aba: "basico" desenha o que se responde sem pensar,
+    "avancado" desenha os numeros de ajuste, None desenha tudo. E um filtro
+    de desenho e nada mais -- quem grava le os dois niveis, senao trocar de
+    aba apagaria o que estava na outra.
     """
     acoes = acoes or {}
     contexto = model.contexto_dos_campos(campos)
+    visiveis = model.visiveis(campos, nivel, contexto)
     linhas = {}
     grupos = {}
     primeiro = True
 
-    for identificador, titulo, condicao, grupo in model.GRUPOS:
-        if condicao and not model.PERFILADO[condicao](contexto):
+    for identificador, titulo, _condicao, _grupo in model.GRUPOS:
+        if identificador not in visiveis:
             continue
+        _titulo, grupo = visiveis[identificador]
 
         acordeao = Acordeao(quadro, identificador, titulo, ao_mudar=ao_grupo)
         acordeao.pack(fill="x", pady=(0, tokens.px(tokens.ESPACO_2)))
         grupos[identificador] = acordeao
 
         for acao in model.ACOES.get(identificador, ()):
+            if nivel is not None and acao.nivel != nivel:
+                continue
             comando = acoes.get(acao.seletor)
             if comando is None:
                 continue
@@ -66,8 +73,6 @@ def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, past
             )
 
         for campo in grupo:
-            if not campo.visivel(contexto):
-                continue
             linha = LinhaCampo(
                 acordeao.conteudo,
                 campo,
@@ -78,8 +83,13 @@ def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None, past
             linha.pack(fill="x", pady=_RESPIRO)
             linhas[campo.caminho] = linha
 
-        alvo = aberto if aberto is not None else (_PRIMEIRO if primeiro else None)
-        if identificador == alvo:
+        # O primeiro grupo desenhado nasce aberto, seja qual for. Fixar um
+        # identificador quebrava com as duas abas: o grupo "Perfil" so tem
+        # campo basico, entao na aba de ajustes ele nem existe, e a aba
+        # inteira abria fechada.
+        if aberto is not None and identificador == aberto:
+            acordeao.abrir(animado=False)
+        elif aberto is None and primeiro:
             acordeao.abrir(animado=False)
         primeiro = False
 

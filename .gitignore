@@ -24,3 +24,9 @@ desktop.ini
 
 captura*.png
 debug*.png
+
+# O perfil que a janela cria sozinha no primeiro uso. Os tres perfis de
+# exemplo do pacote versionados sao circulo_claro, faixa_hsv e
+# letra_template; qualquer outro nome nessa pasta e estado da maquina de
+# quem esta usando, e nao parte do codigo.
+profiles/perfil.json

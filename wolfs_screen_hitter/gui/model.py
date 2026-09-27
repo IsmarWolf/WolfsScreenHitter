@@ -47,6 +47,11 @@ class Campo:
     # declarado aqui, e nao no componente, porque e o perfil que diz que
     # aquele caminho e um arquivo -- a tela so desenha o botao.
     seletor: str = ""
+    # Em qual das duas telas o campo aparece: "basico" para o que se
+    # responde sem pensar, "avancado" para os numeros de ajuste. E so
+    # rotulo de tela: o campo continua no perfil e continua sendo
+    # gravado nas duas telas, senao trocar de aba apagaria a outra.
+    nivel: str = "basico"
 
     def visivel(self, contexto):
         return all(PERFILADO[chave](contexto) for chave, _ in self.aparece)
@@ -87,6 +92,10 @@ class Acao:
     rotulo: str
     seletor: str
     dica: str = ""
+    # Mesma ideia do nivel do Campo. O seletor de regiao fica so na aba
+    # basica: no modo janela o grupo "Onde procurar" tambem existe na aba de
+    # ajustes, por causa da margem, e sem isto o botao aparecia nas duas.
+    nivel: str = "basico"
 
 
 # Botoes por grupo, mostrados acima dos campos do grupo. Vive fora de GRUPOS
@@ -130,8 +139,8 @@ GRUPOS = (
                 "",
                 dica="vazio = qualquer janela. O casamento ignora maiusculas e e parcial",
             ),
-            Campo("window.min_width", "Largura minima", "int", 200, minimo=0),
-            Campo("window.min_height", "Altura minima", "int", 200, minimo=0),
+            Campo("window.min_width", "Largura minima", "int", 200, minimo=0, nivel="avancado"),
+            Campo("window.min_height", "Altura minima", "int", 200, minimo=0, nivel="avancado"),
         ),
     ),
     (
@@ -155,7 +164,12 @@ GRUPOS = (
                 minimo=0,
                 dica="so no modo window; corta as bordas de todos os lados",
                 aparece=(("regiao_janela", True),),
+                nivel="avancado",
             ),
+            # As quatro coordenadas ficam na tela basica de proposito: sao a
+            # confirmacao de que o seletor de tela pegou o que devia. Se
+            # elas so aparecessem na de ajustes, arrastar na tela nao
+            # mostraria nada e o unico sinal seria o perfil ja gravado.
             Campo("region.left", "Esquerda", "int", 0, aparece=(("regiao_fixa", True),)),
             Campo("region.top", "Topo", "int", 0, aparece=(("regiao_fixa", True),)),
             Campo("region.width", "Largura", "int", 1920, minimo=1, aparece=(("regiao_fixa", True),)),
@@ -163,9 +177,9 @@ GRUPOS = (
         ),
     ),
     (
-        "alvo_forma",
-        "Alvo por cor",
-        "shape",
+        "alvo",
+        "Como encontrar",
+        None,
         (
             Campo(
                 "detector",
@@ -175,34 +189,43 @@ GRUPOS = (
                 opcoes=("shape", "template"),
                 dica="shape=cor, template=imagem",
             ),
-            Campo("target.bright.v_min", "Brilho minimo (claro)", "int", 150, minimo=0, maximo=255),
-            Campo("target.bright.s_max", "Saturacao max (claro)", "int", 110, minimo=0, maximo=255),
-            Campo("target.dark.v_max", "Brilho max (escuro)", "int", 90, minimo=0, maximo=255),
-            Campo("target.dark.s_max", "Saturacao max (escuro)", "int", 110, minimo=0, maximo=255),
+        ),
+    ),
+    (
+        "alvo_forma",
+        "Ajustes: cor",
+        "shape",
+        (
+            Campo("target.bright.v_min", "Brilho minimo (claro)", "int", 150, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.bright.s_max", "Saturacao max (claro)", "int", 110, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.dark.v_max", "Brilho max (escuro)", "int", 90, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.dark.s_max", "Saturacao max (escuro)", "int", 110, minimo=0, maximo=255, nivel="avancado"),
             # Padrao None quer dizer "desligado". Se a faixa HSV tivesse um
             # intervalo plausivel como padrao, o modelo acharia que o HSV
             # esta em uso e apagaria o bright, que e justamente o que o
             # perfil esta usando.
-            Campo("target.hsv_min.0", "Matiz min", "int", None, minimo=0, maximo=179, dica="faixa HSV, opcional"),
-            Campo("target.hsv_min.1", "Saturacao min", "int", None, minimo=0, maximo=255),
-            Campo("target.hsv_min.2", "Valor min", "int", None, minimo=0, maximo=255),
-            Campo("target.hsv_max.0", "Matiz max", "int", None, minimo=0, maximo=179),
-            Campo("target.hsv_max.1", "Saturacao max", "int", None, minimo=0, maximo=255),
-            Campo("target.hsv_max.2", "Valor max", "int", None, minimo=0, maximo=255),
-            Campo("target.size.min", "Lado minimo", "int", 30, minimo=0),
-            Campo("target.size.max", "Lado maximo", "int", 400, minimo=0),
-            Campo("target.aspect.min", "Proporcao min", "float", 0.5, minimo=0.0, maximo=100.0),
-            Campo("target.aspect.max", "Proporcao max", "float", 2.0, minimo=0.0, maximo=100.0),
-            Campo("target.fill.min", "Preenchimento min", "float", 0.03, minimo=0.0, maximo=1.0),
-            Campo("target.fill.max", "Preenchimento max", "float", 0.45, minimo=0.0, maximo=1.0),
-            Campo("target.area_min", "Area minima", "int", 10, minimo=0),
+            Campo("target.hsv_min.0", "Matiz min", "int", None, minimo=0, maximo=179,
+                  dica="faixa HSV, opcional", nivel="avancado"),
+            Campo("target.hsv_min.1", "Saturacao min", "int", None, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.hsv_min.2", "Valor min", "int", None, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.hsv_max.0", "Matiz max", "int", None, minimo=0, maximo=179, nivel="avancado"),
+            Campo("target.hsv_max.1", "Saturacao max", "int", None, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.hsv_max.2", "Valor max", "int", None, minimo=0, maximo=255, nivel="avancado"),
+            Campo("target.size.min", "Lado minimo", "int", 30, minimo=0, nivel="avancado"),
+            Campo("target.size.max", "Lado maximo", "int", 400, minimo=0, nivel="avancado"),
+            Campo("target.aspect.min", "Proporcao min", "float", 0.5, minimo=0.0, maximo=100.0, nivel="avancado"),
+            Campo("target.aspect.max", "Proporcao max", "float", 2.0, minimo=0.0, maximo=100.0, nivel="avancado"),
+            Campo("target.fill.min", "Preenchimento min", "float", 0.03, minimo=0.0, maximo=1.0, nivel="avancado"),
+            Campo("target.fill.max", "Preenchimento max", "float", 0.45, minimo=0.0, maximo=1.0, nivel="avancado"),
+            Campo("target.area_min", "Area minima", "int", 10, minimo=0, nivel="avancado"),
             Campo("target.work_scale", "Escala de trabalho", "float", 0.5, minimo=0.05, maximo=1.0,
-                  dica="menor = mais rapido e menos sensivel a ruido; maior = melhor para alvo pequeno"),
+                  dica="menor = mais rapido e menos sensivel a ruido; maior = melhor para alvo pequeno",
+                  nivel="avancado"),
         ),
     ),
     (
         "alvo_template",
-        "Alvo por imagem",
+        "Ajustes: imagem",
         "template",
         (
             Campo(
@@ -214,14 +237,15 @@ GRUPOS = (
                 seletor="arquivo",
             ),
             Campo("target.threshold", "Limiar", "float", 0.8, minimo=0.0, maximo=1.0,
-                  dica="0.80 por padrao; abaixe se a imagem nunca casar"),
-            Campo("target.scale_min", "Escala minima", "float", 0.5, minimo=0.01),
-            Campo("target.scale_max", "Escala maxima", "float", 2.0, minimo=0.01),
-            Campo("target.scale_steps", "Passos de escala", "int", 12, minimo=1, maximo=60),
+                  dica="0.80 por padrao; abaixe se a imagem nunca casar", nivel="avancado"),
+            Campo("target.scale_min", "Escala minima", "float", 0.5, minimo=0.01, nivel="avancado"),
+            Campo("target.scale_max", "Escala maxima", "float", 2.0, minimo=0.01, nivel="avancado"),
+            Campo("target.scale_steps", "Passos de escala", "int", 12, minimo=1, maximo=60, nivel="avancado"),
             Campo("target.invert", "Inverter", "bool", False,
-                  dica="para glifo escuro sobre fundo claro"),
+                  dica="para glifo escuro sobre fundo claro", nivel="avancado"),
             Campo("target.work_scale", "Escala de trabalho", "float", 1.0, minimo=0.05, maximo=1.0,
-                  dica="para template o padrao e 1.0; baixar deixa mais rapido e mais grosseiro"),
+                  dica="para template o padrao e 1.0; baixar deixa mais rapido e mais grosseiro",
+                  nivel="avancado"),
         ),
     ),
     (
@@ -235,12 +259,14 @@ GRUPOS = (
                 "escolha",
                 "teleport",
                 opcoes=("teleport", "smooth"),
-                dica="teleport=instantaneo, smooth=caminho curvo com tremor",
+                dica="teleport = vai direto; smooth = percorre o caminho em linha reta, "
+                "com um tremor de tamanho ajustavel",
             ),
             Campo("pointer.duration", "Duracao (s)", "float", 0.16, minimo=0.01, maximo=5.0,
-                  aparece=(("cursor_smooth", True),)),
+                  aparece=(("cursor_smooth", True),), nivel="avancado"),
             Campo("pointer.jitter", "Tremor (px)", "float", 1.2, minimo=0.0, maximo=50.0,
-                  aparece=(("cursor_smooth", True),)),
+                  dica="0 = caminho perfeito. Acima disso cada passo sai um pouco do risco",
+                  aparece=(("cursor_smooth", True),), nivel="avancado"),
         ),
     ),
     (
@@ -249,7 +275,7 @@ GRUPOS = (
         None,
         (
             Campo("controls.corner_seconds", "Segundos no canto", "float", 1.0, minimo=0.0, maximo=60.0,
-                  dica="Esc e F12 sempre param, isso e um extra"),
+                  dica="Esc e F12 sempre param, isso e um extra", nivel="avancado"),
         ),
     ),
 )
@@ -551,20 +577,41 @@ def perfil_padrao():
     )
 
 
-def visiveis(perfil):
-    """Os (grupo, campo) que devem aparecer para o estado atual do perfil."""
-    contexto = contexto_de(perfil)
+def visiveis(perfil, nivel=None, contexto=None):
+    """Os (grupo, campo) que devem aparecer para o estado atual do perfil.
+
+    nivel=None devolve tudo, e e o que o gravador usa: o nivel decide o que
+    e desenhado, nunca o que e gravado. Filtrar a gravacao pelo nivel
+    apagaria da outra aba os campos que ninguem esta vendo.
+
+    contexto existe para quem ja tem o contexto na mao. A tela mora com o
+    dicionario achatado, em que a regiao esta em "region.mode" e nao em
+    perfil["region"]["mode"]; sem o parametro, contexto_de acharia que a
+    regiao e sempre "window" e a tela mostraria as coordenadas fixas para
+    quem escolheu a tela principal.
+
+    Um grupo sem nenhum campo do nivel sai da lista em vez de aparecer
+    vazio. Sem isso a aba de ajustes mostraria "Janela" e "Parada" com um
+    cabecalho e nada dentro, que e pior do que nao mostrar.
+    """
+    contexto = contexto_de(perfil) if contexto is None else contexto
     por_grupo = {}
 
     for identificador, titulo, condicao, grupo in GRUPOS:
         if condicao and not PERFILADO[condicao](contexto):
-            por_grupo[identificador] = (titulo, [])
             continue
-        por_grupo[identificador] = (titulo, [c for c in grupo if c.visivel(contexto)])
+        lista = [
+            campo
+            for campo in grupo
+            if campo.visivel(contexto) and (nivel is None or campo.nivel == nivel)
+        ]
+        if not lista:
+            continue
+        por_grupo[identificador] = (titulo, lista)
 
     return por_grupo
 
 
-def visiveis_chat(perfil):
+def visiveis_chat(perfil, nivel=None):
     """Versao achatada, so os caminhos visiveis."""
-    return [c.caminho for _, lista in visiveis(perfil).values() for c in lista]
+    return [c.caminho for _, lista in visiveis(perfil, nivel).values() for c in lista]

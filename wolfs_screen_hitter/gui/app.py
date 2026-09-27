@@ -28,7 +28,7 @@ from tkinter import filedialog, messagebox, ttk
 from .. import profiles
 from . import estado as controlador
 from . import model
-from .componentes import Botao, Divisor
+from .componentes import Abas, Botao, Divisor
 from .componentes.dialogo import pedir_texto
 from .componentes.seletor import SeletorPerfil
 from .componentes.seletor_regiao import escolher_regiao
@@ -112,6 +112,7 @@ class Aplicacao(tk.Tk):
     def _montar(self):
         self._montar_cabecalho()
         self._montar_acoes()
+        self._montar_abas()
         self._montar_formulario_cheio()
         self._montar_status()
 
@@ -201,6 +202,43 @@ class Aplicacao(tk.Tk):
             fg=tokens.PRETO,
             anchor="e",
         ).pack(side="right", fill="x", expand=True, padx=(tokens.px(tokens.ESPACO_3), 0))
+
+    def _montar_abas(self):
+        """As duas telas de configuracao.
+
+        A aba comeca sempre na basica, tambem depois de recarregar um
+        perfil. Guardar a aba por perfil daria um estado que o JSON nao
+        guarda e que o usuario nao pediu para guardar: ele abriria o
+        perfil e comecaria nos numeros de ajuste, que e o contrario do
+        caminho de ajustes finos.
+        """
+        self.nivel = "basico"
+        self.abas = Abas(
+            self,
+            (("basico", "Configuracoes"), ("avancado", "Ajustes finos")),
+            self._trocar_aba,
+            ativa="basico",
+        )
+        self.abas.pack(fill="x", padx=tokens.px(tokens.ESPACO_4),
+                       pady=(tokens.px(tokens.ESPACO_2), 0))
+        Divisor(self).pack(fill="x")
+
+    def _trocar_aba(self, nivel):
+        """Ponto unico de troca de aba.
+
+        A barra e repintada aqui, e nao no clique: e este metodo que e a
+        verdade do nivel, e ele pode ser chamado sem passar pela barra. Se
+        a barra se marcasse sozinha ao ser clicada, trocar de aba por outro
+        caminho deixaria a barra anunciando uma coisa e o formulario
+        mostrando outra.
+        """
+        self.nivel = nivel
+        self.abas.definir_ativa(nivel)
+        # O grupo aberto pertence a aba anterior e talvez nem exista na
+        # nova. Zerar deixa a nova abrir o primeiro dela, que e o mesmo
+        # comportamento de quem abriu o programa.
+        self._grupo_aberto = None
+        self._redesenhar()
 
     def _montar_formulario_cheio(self):
         """O formulario ocupa a largura toda, dentro de um canvas com rolagem
@@ -458,6 +496,7 @@ class Aplicacao(tk.Tk):
                 ao_grupo=self._so_um,
                 pasta=str(self.estado.diretorio),
                 acoes=self._comandos_de_seletor(),
+                nivel=self.nivel,
             )
         finally:
             self._reconstruindo = False

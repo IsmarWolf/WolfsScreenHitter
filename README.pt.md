@@ -79,10 +79,12 @@ O ciclo é sempre o mesmo: copie um perfil, ajuste o `target`, teste com `check 
 python -m wolfs_screen_hitter.gui
 ```
 
-O mesmo perfil, numa janela. **Novo** pede um nome e grava o arquivo na hora, então todo perfil do dropdown já tem nome. Os grupos de campos abrem um de cada vez, e os dois campos que exigiriam abrir um JSON para entender ganharam um botão no lugar:
+O mesmo perfil, numa janela. **Novo** pede um nome e grava o arquivo na hora, então todo perfil do dropdown já tem nome. A janela tem duas abas: **Configurações**, com o que se responde sem pensar, e **Ajustes finos**, com os números. Você troca de aba o tempo todo e nada se perde: as duas gravam no mesmo perfil. Os grupos de campos abrem um de cada vez, e os campos que exigiriam abrir um JSON para entender ganharam um botão no lugar:
 
 - **Selecionar na tela** cobre a tela principal. Arraste um retângulo em volta do alvo e os quatro números da região se preenchem. **Esc** cancela.
 - O campo do template tem um botão de pasta ao lado, para você escolher o PNG em vez de digitar um caminho.
+
+Na aba **Configurações** ficam o nome do perfil, o título da janela, a região, o detector, o arquivo do template e o tipo de movimento do cursor. Na de **Ajustes finos** ficam o brilho, a saturação, o tamanho, a proporção, o preenchimento, a área, o limiar, a faixa HSV, a escala de trabalho, a margem, o tamanho mínimo da janela, a duração e o tremor do cursor, e os segundos no canto. Os padrões já funcionam na maioria dos casos: se você não sabe o que é "preenchimento máximo", não precisa mexer nele.
 
 Um perfil criado aqui é um JSON comum na pasta `profiles/`. A janela e a linha de comando leem a mesma coisa.
 

@@ -1,11 +1,12 @@
 """Componentes do design system.
 
-Tudo que a tela repete esta aqui: botao, card, acordeao, lista de perfis,
-seletor de perfil, dialogo e linha de campo. Nenhum deles decide o que e um
-perfil valido; isso continua sendo do modelo. Eles so desenham e avisam
+Tudo que a tela repete esta aqui: botao, card, acordeao, abas, lista de
+perfis, seletor de perfil, dialogo e linha de campo. Nenhum deles decide o que
+e um perfil valido; isso continua sendo do modelo. Eles so desenham e avisam
 quando algo muda.
 """
 
+from .abas import Abas
 from .acordeao import Acordeao
 from .botao import Botao
 from .campo import LinhaCampo
@@ -17,6 +18,7 @@ from .seletor import SeletorPerfil
 from .seletor_regiao import escolher_regiao
 
 __all__ = [
+    "Abas",
     "Acordeao",
     "Botao",
     "Divisor",

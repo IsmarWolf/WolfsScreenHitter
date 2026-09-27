@@ -45,13 +45,18 @@ with tempfile.TemporaryDirectory() as pasta:
 
     app.update()
     checar("a janela existe", bool(app.winfo_exists()))
-    checar("o formulario tem linhas", len(app.linhas) > 20, str(len(app.linhas)))
+    checar("a tela comeca na aba basica", app.nivel == "basico", str(app.nivel))
+    checar(
+        "a aba basica e curta de proposito",
+        0 < len(app.linhas) <= 8,
+        f"{len(app.linhas)} linhas: {sorted(app.linhas)}",
+    )
     checar("a lista comeca vazia numa pasta nova", app.caminhos == [], str(app.caminhos))
 
     grupos = [acordeao.identificador for acordeao in app.grupos.values()]
     checar(
-        "todos os grupos do perfil estao na tela",
-        grupos == ["identidade", "janela", "regiao", "alvo_forma", "cursor", "controles"],
+        "a aba basica mostra so os grupos do obvio",
+        grupos == ["identidade", "janela", "regiao", "alvo", "cursor"],
         str(grupos),
     )
     checar(
@@ -86,22 +91,37 @@ with tempfile.TemporaryDirectory() as pasta:
     checar("so um grupo fica aberto", abertos == ["cursor"], str(abertos))
 
     print("2. trocar o detector redesenha sem travar")
+    from wolfs_screen_hitter.gui import model
+
+    def linha_de(caminho, aba=None):
+        """Vai para a aba que contem o campo e devolve a linha dele.
+
+        Com as duas telas, app.linhas so tem o que esta desenhado. Editar um
+        campo de ajuste fino pela aba basica e imposible, e nao e defeito:
+        por isso o teste troca de aba, como o usuario faz.
+        """
+        alvo = aba or next(c.nivel for c in model.CAMPOS if c.caminho == caminho)
+        if app.nivel != alvo:
+            app._trocar_aba(alvo)
+            app.update()
+        return app.linhas[caminho]
+
     antes = len(app.linhas)
     app._ao_mudar("detector", "template")
     app._ao_mudar("target.template", "templates/letra.png")
     app.update()
-    checar("apareceu campo de template", "target.threshold" in app.linhas, str(sorted(app.linhas)[:4]))
-    checar("sumiu campo de forma", "target.size.min" not in app.linhas)
+    checar("apareceu o campo de template", "target.template" in app.linhas, str(sorted(app.linhas)))
+    checar("o limiar e da outra aba", "target.threshold" not in app.linhas, str(sorted(app.linhas)))
     checar("o estado guardou a troca", app.estado.texto("detector") == "template")
 
     app._ao_mudar("detector", "shape")
     app.update()
-    checar("voltou para forma", "target.size.min" in app.linhas)
+    checar("a aba basica nao tem ajuste de forma", "target.size.min" not in app.linhas, str(sorted(app.linhas)))
     checar("a janela nao explodiu em linhas", len(app.linhas) != antes or True)
 
     print("3. editar pela tela marca o campo e o titulo")
-    app.linhas["target.size.min"].definir("77")
-    app._ao_mudar("target.size.min", app.linhas["target.size.min"].texto())
+    linha_de("target.size.min").definir("77")
+    app._ao_mudar("target.size.min", linha_de("target.size.min").texto())
     checar("o valor chegou ao estado", app.estado.texto("target.size.min") == "77", app.estado.texto("target.size.min"))
     checar("o titulo avisa que tem mudanca", "*" in app.title(), app.title())
     checar("o resumo conita o caminho", "sem nome" in app.resumo.get(), app.resumo.get())
@@ -110,9 +130,9 @@ with tempfile.TemporaryDirectory() as pasta:
     destino = pathlib.Path(pasta) / "da_janela.json"
     app._ao_mudar("target.size.min", "abc")
     app.update()
-    checar("enquanto digita, nao reclama", app.linhas["target.size.min"].erro is None)
+    checar("enquanto digita, nao reclama", linha_de("target.size.min").erro is None)
     app._gravar(destino)
-    linha = app.linhas["target.size.min"]
+    linha = linha_de("target.size.min")
     checar("a linha ficou marcada", linha.erro is not None, str(linha.erro))
     checar("o texto do erro diz o motivo", "inteiro" in (linha.erro or ""), str(linha.erro))
     checar("nao escreveu o arquivo", not destino.exists())
@@ -124,7 +144,7 @@ with tempfile.TemporaryDirectory() as pasta:
     app._ao_mudar("target.size.min", "77")
     app._gravar(destino)
     checar("criou o arquivo", destino.exists(), str(destino))
-    checar("a marca de erro sumiu", app.linhas["target.size.min"].erro is None)
+    checar("a marca de erro sumiu", linha_de("target.size.min").erro is None)
     if destino.exists():
         relido = profiles.load(destino)
         checar("o valor foi para o disco", relido["target"]["size"]["min"] == 77, str(relido["target"]["size"]))
@@ -133,7 +153,7 @@ with tempfile.TemporaryDirectory() as pasta:
     print("6. abrir pela tela preenche o formulario")
     app.abrir(destino)
     app.update()
-    checar("o campo mostra o valor do disco", app.linhas["target.size.min"].texto() == "77", app.linhas["target.size.min"].texto())
+    checar("o campo mostra o valor do disco", linha_de("target.size.min").texto() == "77", linha_de("target.size.min").texto())
     checar("a lista tem o perfil", destino in app.caminhos, str(app.caminhos))
 
     print("7. o seletor de perfil abre a lista no topo")
@@ -285,7 +305,7 @@ with tempfile.TemporaryDirectory() as pasta:
 
     app._ao_mudar("detector", "template")
     app.update()
-    linha = app.linhas["target.template"]
+    linha = linha_de("target.template")
     checar(
         "o botao de arquivo entrou na moldura da entrada",
         getattr(linha, "_abrir", None) is not None,
@@ -505,6 +525,122 @@ with tempfile.TemporaryDirectory() as pasta:
     app.update()
     checar("Esc fecha a camada", not arraste.camada.winfo_exists(), "")
     checar("Esc devolveu nada", arraste.regiao is None, "")
+
+    print("10. as duas telas de configuracao dividem os campos sem perder nada")
+    # O risco real desta troca e o nivel ter-virusado para dentro do
+    # gravador. Se o que e desenhado decidesse tambem o que e gravado,
+    # salvar com a aba de ajustes aberta apagaria o nome, o titulo da
+    # janela e o modo da regiao, sem erro nenhum: o arquivo sairia
+    # valido e incompleto.
+    app._trocar_aba("basico")
+    app.update()
+    app._ao_mudar("name", "as duas telas")
+    app._ao_mudar("window.title", "Jogo")
+    app._ao_mudar("region.mode", "screen")
+    app._ao_mudar("detector", "shape")
+    app.update()
+
+    basico = sorted(app.linhas)
+    checar("a aba basica mostra o obvio", basico == ["detector", "name", "pointer.mode", "region.mode",
+                                                    "window.title"], str(basico))
+    checar("a aba basica nao tem nenhum numero de ajuste",
+           not any(c in app.linhas for c in ("target.size.min", "region.margin",
+                                              "window.min_width", "controls.corner_seconds")),
+           str(sorted(app.linhas)))
+
+    app._trocar_aba("avancado")
+    app.update()
+    avancado = sorted(app.linhas)
+    checar("a aba de ajustes tem os numeros",
+           "target.size.min" in app.linhas and "window.min_width" in app.linhas,
+           str(avancado[:6]))
+    checar("a margem sumiu porque a regiao e a tela inteira, e nao a janela",
+           "region.margin" not in app.linhas, str(sorted(app.linhas)))
+    checar("a aba de ajustes nao repete o obvio",
+           not any(c in app.linhas for c in ("name", "window.title", "detector", "region.mode")),
+           str(sorted(app.linhas)))
+    checar("a aba de ajustes mostra os dois grupos de alvo", "alvo_forma" in app.grupos, str(sorted(app.grupos)))
+    checar("a aba de ajustes tem mais para mostrar que a basica", len(avancado) > len(basico),
+           f"{len(avancado)} contra {len(basico)}")
+    checar("um grupo nasce aberto na aba de ajustes",
+           len([g for g in app.grupos.values() if g.esta_aberto()]) == 1,
+           str([g.identificador for g in app.grupos.values() if g.esta_aberto()]))
+
+    # O valor digitado na aba basica sobrevive a ida e volta.
+    app._ao_mudar("target.size.min", "55")
+    app.update()
+    app._trocar_aba("basico")
+    app.update()
+    checar("o nome da aba basica sobreviveu a ida e volta",
+           app.linhas["name"].texto() == "as duas telas", app.linhas["name"].texto())
+    checar("o titulo da janela sobreviveu", app.linhas["window.title"].texto() == "Jogo",
+           app.linhas["window.title"].texto())
+    checar("o modo da regiao sobreviveu", app.linhas["region.mode"].texto() == "screen",
+           app.linhas["region.mode"].texto())
+    app._trocar_aba("avancado")
+    app.update()
+    checar("o numero da aba de ajustes sobreviveu", app.linhas["target.size.min"].texto() == "55",
+           app.linhas["target.size.min"].texto())
+
+    # E o mais importante: salvar de uma aba tem que gravar as duas.
+    destino_abas = pathlib.Path(pasta) / "duas_telas.json"
+    app._gravar(destino_abas)
+    app.update()
+    if destino_abas.exists():
+        relido = profiles.load(destino_abas)
+        checar("salvou da aba de ajustes, e o nome basico foi junto",
+               relido.get("name") == "as duas telas", str(relido.get("name")))
+        checar("salvou da aba de ajustes, e o titulo da janela foi junto",
+               (relido.get("window") or {}).get("title") == "Jogo", str(relido.get("window")))
+        checar("salvou da aba de ajustes, e a regiao foi junto",
+               (relido.get("region") or {}).get("mode") == "screen", str(relido.get("region")))
+        checar("salvou da aba de ajustes, e o numero da mesma aba foi junto",
+               relido["target"]["size"]["min"] == 55, str(relido["target"]["size"]))
+    else:
+        checar("o arquivo das duas telas foi criado", False, str(destino_abas))
+
+    app._trocar_aba("basico")
+    app.update()
+    checar("a barra marca a aba basica de novo", app.abas.ativa == "basico", str(app.abas.ativa))
+    checar("voltar para a basica monta os grupos da basica",
+           sorted(app.grupos) == ["alvo", "cursor", "identidade", "janela", "regiao"],
+           str(sorted(app.grupos)))
+
+    # A barra e a dona da pintura, mas quem decide o nivel e a janela. Se
+    # as duas pudessem andar sozinhas, trocar de aba sem clicar deixaria a
+    # barra anunciando uma coisa e o formulario mostrando outra.
+    app._trocar_aba("avancado")
+    app.update()
+    checar("trocar por fora tambem repinta a barra", app.abas.ativa == "avancado", str(app.abas.ativa))
+    app.abas._botoes["basico"].event_generate("<Button-1>", x=3, y=3)
+    app.update()
+    checar("clicar na barra troca o formulario", app.nivel == "basico", str(app.nivel))
+    checar("e a barra concorda com o formulario", app.abas.ativa == "basico", str(app.abas.ativa))
+    checar("e o formulario e o da aba basica", "name" in app.linhas and "target.size.min" not in app.linhas,
+           str(sorted(app.linhas)))
+
+    # A margem e o unico ajuste de regiao, e ele so vale no modo janela.
+    # Conferir aqui e conferir que a aba de ajustes tambem respeita o
+    # contexto, e nao so a aba basica.
+    app._ao_mudar("region.mode", "window")
+    app._trocar_aba("avancado")
+    app.update()
+    checar("com a regiao na janela, a margem aparece nos ajustes",
+           "region.margin" in app.linhas, str(sorted(app.linhas)))
+    repetidas = [
+        c
+        for g in app.grupos.values()
+        for c in g.conteudo.winfo_children()
+        if isinstance(c, LinhaAcao)
+    ]
+    checar("o botao de escolher a regiao nao se repete nos ajustes",
+           not repetidas, f"{len(repetidas)} botoes de acao")
+    app._ao_mudar("region.mode", "screen")
+    app.update()
+    checar("voltando para a tela, a margem sai de novo",
+           "region.margin" not in app.linhas, str(sorted(app.linhas)))
+    app._trocar_aba("basico")
+    app.update()
 
     print("8. o botao afunda ao clicar e dispara o comando")
     from wolfs_screen_hitter.gui.componentes import Botao

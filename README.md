@@ -79,10 +79,12 @@ The loop is always the same: copy a profile, adjust `target`, test with `check -
 python -m wolfs_screen_hitter.gui
 ```
 
-The same profile, in a window. **Novo** asks for a name and saves the file right away, so every profile in the dropdown has a name. The field groups open one at a time, and the two fields you would have to read a JSON file to understand have a button instead:
+The same profile, in a window. **Novo** asks for a name and saves the file right away, so every profile in the dropdown has a name. The window has two tabs: **Configurações**, holding what you answer without thinking, and **Ajustes finos**, holding the numbers. You move between them constantly and nothing is lost, because both write to the same profile. The field groups open one at a time, and the fields you would have to read a JSON file to understand have a button instead:
 
 - **Selecionar na tela** covers the primary screen. Drag a rectangle around the target and the four region numbers fill themselves in. **Esc** cancels.
 - The template field has a folder button next to it, so you pick the PNG instead of typing a path.
+
+The **Configurações** tab holds the profile name, the window title, the region, the detector, the template file and the cursor movement mode. **Ajustes finos** holds brightness, saturation, size, aspect, fill, area, threshold, the HSV range, work scale, margin, minimum window size, cursor duration and jitter, and the corner seconds. The defaults already work in most cases: if you do not know what "maximum fill" means, you do not need to touch it.
 
 A profile created here is an ordinary JSON file in `profiles/`. The window and the command line read the same thing.
 
