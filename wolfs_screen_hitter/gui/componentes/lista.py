@@ -24,7 +24,8 @@ _CORES = (tokens.VERMELHO, tokens.AZUL, tokens.AMARELO, tokens.VERMELHO)
 class ListaPerfis(tk.Canvas):
     """Lista de seleção única, desenhada e navegável por teclado."""
 
-    def __init__(self, pai, ao_selecionar=None, fundo=tokens.AZUL, tinta=tokens.BRANCO):
+    def __init__(self, pai, ao_selecionar=None, fundo=tokens.AZUL, tinta=tokens.BRANCO,
+                 altura=220):
         super().__init__(
             pai,
             bg=fundo,
@@ -32,6 +33,7 @@ class ListaPerfis(tk.Canvas):
             highlightthickness=0,
             takefocus=1,
             width=tokens.px(240),
+            height=tokens.px(altura),
         )
         self.fundo = fundo
         self.tinta = tinta

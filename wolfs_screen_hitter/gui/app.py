@@ -4,7 +4,7 @@ Nesta etapa a janela faz o ciclo do perfil: listar, abrir, criar, editar e
 salvar. O que e valido continua sendo decidido pelo modelo, entao o que
 esta na tela e o mesmo que a CLI le.
 
-Sobre a escolha dos widgets: a barra superior, a lateral e o rodape sao
+Sobre a escolha dos widgets: o cabecalho, a faixa de acoes e o rodape sao
 Canvas e Frame com cor, e nao ttk. O motivo e medido, nao moda: no Windows
 com o tema vista ativo, o ttk ignora cor de fundo, borda e relevo, e o
 resultado e um formulario cinza que nao pertence a esta tela. As entradas
@@ -13,10 +13,14 @@ atalhos e o Entry, e refazer isso seria refazer o editor de texto do
 sistema.
 
 A estrutura e de cima para baixo: cabecalho azul com a assinatura, depois a
-faixa de acoes, depois a lateral de perfis ao lado do formulario, e no pe
-a barra de status amarela sobre o rodape preto.
+faixa com o perfil aberto e as acoes, depois o formulario em acordao
+ocupando a largura toda, e no pe a barra de status amarela sobre o rodape
+preto. Nao ha coluna lateral: todo perfil ja nasce gravado e com nome, a
+escolha entre eles cabe em um dropdown, e a coluna inteira seria largura
+gasta para repetir essa escolha.
 """
 
+import re
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -24,13 +28,39 @@ from tkinter import filedialog, messagebox, ttk
 from .. import profiles
 from . import estado as controlador
 from . import model
-from .componentes import Botao, Divisor, ListaPerfis, Painel
+from .componentes import Botao, Divisor
+from .componentes.dialogo import pedir_texto
+from .componentes.seletor import SeletorPerfil
+
 from .design import formas, tokens, tipografia
 from .widgets import montar_formulario
 
 _LARGURA = 1160
 _ALTURA = 720
-_LATERAL = 260
+_SELETOR = 260
+
+# O que o Windows aceita em nome de arquivo, e o que o perfil vai ter que
+# sobreviver dentro. Tudo que nao for letra, numero, ponto, hifen ou
+# sublinhado vira sublinhado, porque o campo name vai para o cabecalho do
+# perfil e para o nome do arquivo ao mesmo tempo.
+_INVALIDOS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_RESERVADOS = {
+    "con", "prn", "aux", "nul",
+    *(f"com{i}" for i in range(1, 10)),
+    *(f"lpt{i}" for i in range(1, 10)),
+}
+
+
+def nome_de_arquivo(nome):
+    """Um nome de perfil vira um nome de arquivo sem perder o que da para
+    ler, e sem o Windows recusar depois."""
+    limpo = _INVALIDOS.sub("_", nome).strip().strip(".")
+    limpo = limpo[:96]
+    if not limpo:
+        return "perfil"
+    if limpo.lower() in _RESERVADOS:
+        limpo = f"_{limpo}"
+    return limpo
 
 
 class Aplicacao(tk.Tk):
@@ -44,7 +74,7 @@ class Aplicacao(tk.Tk):
         tipografia.carregar(self)
 
         self.geometry(f"{tokens.px(_LARGURA)}x{tokens.px(_ALTURA)}")
-        self.minsize(tokens.px(880), tokens.px(560))
+        self.minsize(tokens.px(880), tokens.px(tokens.ESPACO_8 * 18))
         self.configure(bg=tokens.BG_CANVAS)
 
         self.estado = controlador.Estado(diretorio)
@@ -56,6 +86,7 @@ class Aplicacao(tk.Tk):
         # checkbox dispara o evento dele de volta. Sem esta trava, trocar o
         # detector entraria em laco.
         self._reconstruindo = False
+        self._travando = False
 
         self.mensagem = tk.StringVar()
         self.resumo = tk.StringVar()
@@ -65,7 +96,7 @@ class Aplicacao(tk.Tk):
         # O formulario nasce antes de tentar abrir qualquer coisa. Se o
         # primeiro perfil da pasta estiver corrompido, abrir() so avisa e
         # devolve, e sem esta linha a tela ficaria sem um unico campo.
-        self.novo()
+        self.novo(silencioso=True)
         if self.caminhos:
             self.abrir(self.caminhos[0])
 
@@ -76,18 +107,7 @@ class Aplicacao(tk.Tk):
     def _montar(self):
         self._montar_cabecalho()
         self._montar_acoes()
-
-        Divisor(self).pack(fill="x")
-
-        corpo = tk.Frame(self, bg=tokens.BG_CANVAS, bd=0, highlightthickness=0)
-        corpo.pack(fill="both", expand=True, padx=tokens.px(tokens.ESPACO_4),
-                   pady=tokens.px(tokens.ESPACO_4))
-        corpo.grid_columnconfigure(0, minsize=tokens.px(_LATERAL))
-        corpo.grid_columnconfigure(1, weight=1)
-        corpo.grid_rowconfigure(0, weight=1)
-
-        self._montar_lateral(corpo)
-        self._montar_formulario(corpo)
+        self._montar_formulario_cheio()
         self._montar_status()
 
     def _montar_cabecalho(self):
@@ -140,6 +160,16 @@ class Aplicacao(tk.Tk):
         barra = tk.Frame(self, bg=tokens.BG_CANVAS, bd=0, highlightthickness=0)
         barra.pack(fill="x", padx=tokens.px(tokens.ESPACO_4), pady=tokens.px(tokens.ESPACO_3))
 
+        # O perfil aberto vem antes dos botoes: e ele que diz o que os botoes
+        # vao mexer. Um "Salvar" sem saber em qual arquivo se salva e a
+        # duvida que fica, e ela nao precisa existir.
+        self.seletor = SeletorPerfil(barra, self._abrir_da_lista, largura=_SELETOR)
+        self.seletor.pack(side="left")
+
+        tk.Frame(barra, bg=tokens.CINZA, width=tokens.px(tokens.BORDA_GROSSA)).pack(
+            side="left", fill="y", padx=tokens.px(tokens.ESPACO_3)
+        )
+
         acoes = (
             ("Novo", self.novo, "primario"),
             ("Abrir", self.escolher_arquivo, "secundario"),
@@ -148,10 +178,12 @@ class Aplicacao(tk.Tk):
         )
         for rotulo, comando, variante in acoes:
             Botao(barra, rotulo, comando, variante=variante).pack(
-                side="left", padx=(0, tokens.px(tokens.ESPACO_2))
+                side="left", padx=(0, tokens.px(tokens.ESPACO_1))
             )
 
-        Botao(barra, "Atualizar", self.atualizar_lista, variante="fantasma").pack(side="left")
+        Botao(barra, "Atualizar", self.atualizar_lista, variante="fantasma").pack(
+            side="left", padx=(tokens.px(tokens.ESPACO_1), 0)
+        )
 
         tk.Label(
             barra,
@@ -162,38 +194,14 @@ class Aplicacao(tk.Tk):
             anchor="e",
         ).pack(side="right", fill="x", expand=True, padx=(tokens.px(tokens.ESPACO_3), 0))
 
-    def _montar_lateral(self, pai):
-        cartao = Painel(pai, marcador="circulo")
-        cartao.grid(row=0, column=0, sticky="nsew", padx=(0, tokens.px(tokens.ESPACO_4)))
-
-        tk.Label(
-            cartao.corpo,
-            text="PERFIS",
-            font=tipografia.fonte("h3"),
-            bg=tokens.BRANCO,
-            fg=tokens.PRETO,
-            anchor="w",
-        ).pack(fill="x", pady=(0, tokens.px(tokens.ESPACO_2)))
-
-        # A lista e um Canvas, entao o cartão precisa de uma altura propria
-        # para ela poder rolar dentro.
-        lista_area = tk.Frame(cartao.corpo, bg=tokens.BRANCO, bd=0, highlightthickness=0)
-        lista_area.pack(fill="both", expand=True)
-
-        self.lista = ListaPerfis(
-            lista_area, ao_selecionar=self._abrir_da_lista, fundo=tokens.BRANCO, tinta=tokens.PRETO
-        )
-        self.lista.pack(fill="both", expand=True)
-
-    def _montar_formulario(self, pai):
-        """O formulario vai num canvas com rolagem, porque um grupo pode
-        ser mais alto que a janela."""
-        area = tk.Frame(pai, bg=tokens.BG_CANVAS, bd=0, highlightthickness=0)
-        area.grid(row=0, column=1, sticky="nsew")
-
-        self.formulario = tk.Frame(area, bg=tokens.BG_CANVAS, bd=0, highlightthickness=0)
-        self._rolagem = Rolagem(area, self.formulario)
-        self._rolagem.pack(fill="both", expand=True)
+    def _montar_formulario_cheio(self):
+        """O formulario ocupa a largura toda, dentro de um canvas com rolagem
+        porque um grupo aberto pode ser mais alto que a janela."""
+        Divisor(self).pack(fill="x")
+        self.formulario = tk.Frame(self, bg=tokens.BG_CANVAS, bd=0, highlightthickness=0)
+        self._rolagem = Rolagem(self, self.formulario)
+        self._rolagem.pack(fill="both", expand=True, padx=tokens.px(tokens.ESPACO_4),
+                           pady=tokens.px(tokens.ESPACO_4))
 
     def _montar_status(self):
         Divisor(self).pack(fill="x")
@@ -239,7 +247,8 @@ class Aplicacao(tk.Tk):
         """Redesenha a lista, mantendo selecionado o perfil aberto."""
         anterior = self.estado.caminho
         self.caminhos = self.estado.listar()
-        self.lista.definir_itens(self.caminhos, anterior)
+        self.seletor.definir_itens(self.caminhos)
+        self.seletor.definir_perfil(anterior, self.estado.sujo)
 
     def _abrir_da_lista(self, caminho):
         if caminho != self.estado.caminho:
@@ -254,11 +263,72 @@ class Aplicacao(tk.Tk):
 
     # -- acoes -----------------------------------------------------------
 
-    def novo(self):
+    def novo(self, silencioso=False):
+        """Perfil novo com nome e ja gravado.
+
+        A regra mudou com o pedido da tela: um perfil so existe depois de ter
+        nome e arquivo. Antes, "Novo" deixava um formulario solto e o
+        trabalho de dar nome a ele vinha no "Salvar como", num dialogo do
+        sistema. Agora o nome e pedido logo no comeco, em uma janela da
+        propria tela, e o arquivo nasce junto -- o que faz a lista de
+        perfis nunca mostrar item sem nome, e faz "Novo" deixar a tela num
+        estado em que ja da para salvar sem pensar em nome de arquivo.
+
+        O cancelamento nao perde nada: volta para o perfil que estava
+        aberto, ou para um formulario em branco se nao havia nenhum.
+        """
+        anterior = self.estado.caminho
         self.estado.novo()
+
+        if silencioso:
+            self._grupo_aberto = None
+            self._redesenhar()
+            return None
+
+        nome = pedir_texto(
+            self,
+            "Novo perfil",
+            valor=self._nome_livre(),
+            instrucao="O nome vira o nome do arquivo. Da para trocar depois, em Salvar como.",
+        )
+        if nome is None:
+            return self._voltar_para(anterior)
+
+        destino = self._destino_de(nome)
+        if destino is None:
+            return self._voltar_para(anterior)
+
+        self.estado.campos["name"] = nome
         self._grupo_aberto = None
         self._redesenhar()
-        self.avisar(tipografia.maiuscula("perfil novo. use salvar para escolher o nome."))
+        return self._gravar(destino, recado=f"CRIADO: {nome}")
+
+    def _voltar_para(self, caminho):
+        """Desfaz um "Novo" cancelado."""
+        if caminho and caminho.exists():
+            return self.abrir(caminho)
+        return self.novo(silencioso=True)
+
+    def _nome_livre(self):
+        """Um nome sugerido que ainda nao existe na pasta."""
+        base = "perfil"
+        if not (self.estado.diretorio / f"{base}.json").exists():
+            return base
+        numero = 2
+        while (self.estado.diretorio / f"{base} {numero}.json").exists():
+            numero += 1
+        return f"{base} {numero}"
+
+    def _destino_de(self, nome):
+        """O caminho que o perfil novo vai ter, ou None se o usuario nao
+        quiser substituir um arquivo que ja existe."""
+        destino = self.estado.diretorio / f"{nome_de_arquivo(nome)}.json"
+        if destino.exists() and not messagebox.askyesno(
+            "Esse perfil ja existe",
+            f"Ja existe {destino.name} na pasta de perfis.\n\nSubstituir esse arquivo?",
+        ):
+            return None
+        return destino
 
     def abrir(self, caminho):
         try:
@@ -293,7 +363,7 @@ class Aplicacao(tk.Tk):
         )
         return self._gravar(Path(escolhido)) if escolhido else None
 
-    def _gravar(self, destino):
+    def _gravar(self, destino, recado=None):
         try:
             salvo = self.estado.salvar(destino)
         except model.ErroDeCampo as erro:
@@ -305,7 +375,7 @@ class Aplicacao(tk.Tk):
 
         self.limpar_erros()
         self.atualizar_lista()
-        self.avisar(f"SALVO: {salvo.name}")
+        self.avisar(recado or f"SALVO: {salvo.name}")
         return salvo
 
     def _marcar(self, caminho, mensagem):

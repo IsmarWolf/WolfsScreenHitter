@@ -136,8 +136,17 @@ with tempfile.TemporaryDirectory() as pasta:
     checar("o campo mostra o valor do disco", app.linhas["target.size.min"].texto() == "77", app.linhas["target.size.min"].texto())
     checar("a lista tem o perfil", destino in app.caminhos, str(app.caminhos))
 
-    print("7. a lista desenhada navega pelo teclado")
-    lista = app.lista
+    print("7. o seletor de perfil abre a lista no topo")
+    seletor = app.seletor
+    checar(
+        "o seletor mostra o perfil aberto",
+        destino.stem in seletor.nome.cget("text"),
+        seletor.nome.cget("text"),
+    )
+    seletor.abrir()
+    app.update()
+    checar("o popup subiu", seletor._popup is not None, "")
+    lista = seletor._lista
     checar("a lista foi alimentada", len(lista.itens) == 1, str(lista.itens))
     lista.focus_set()
     lista.event_generate("<Down>")
@@ -154,6 +163,56 @@ with tempfile.TemporaryDirectory() as pasta:
         len(lista.find_all()) > len(lista.itens),
         str(len(lista.find_all())),
     )
+    seletor.fechar()
+    app.update()
+    checar("o popup fecha", seletor._popup is None, "")
+
+    print("7b. novo pede o nome e ja grava o arquivo")
+    import wolfs_screen_hitter.gui.app as modulo
+
+    pedidos = []
+
+    def _nome_da_janela(pao, titulo, valor="", instrucao="", confirmar="CONFIRMAR"):
+        pedidos.append((titulo, valor))
+        return "Alvo do boss"
+
+    original = modulo.pedir_texto
+    modulo.pedir_texto = _nome_da_janela
+    try:
+        app.novo()
+        app.update()
+        criado = destino.parent / "Alvo do boss.json"
+        checar("a janela de nome foi chamada", [t for t, _ in pedidos] == ["Novo perfil"], str(pedidos))
+        checar("o arquivo nasceu junto com o nome", criado.exists(), str(criado))
+        checar("o perfil novo virou o aberto", app.estado.caminho == criado, str(app.estado.caminho))
+        checar("o nome foi para o campo", app.estado.texto("name") == "Alvo do boss", app.estado.texto("name"))
+        checar("nasce sem pendencia", not app.estado.sujo, str(app.estado.sujo))
+        checar(
+            "o seletor passou a mostrar o novo",
+            criado.stem in app.seletor.nome.cget("text"),
+            app.seletor.nome.cget("text"),
+        )
+        checar("o novo entrou na lista do seletor", criado in app.caminhos, str(app.caminhos))
+
+        modulo.pedir_texto = lambda *a, **k: None
+        app.novo()
+        app.update()
+        checar(
+            "cancelar volta para o perfil que estava aberto",
+            app.estado.caminho == criado,
+            str(app.estado.caminho),
+        )
+    finally:
+        modulo.pedir_texto = original
+
+    print("7c. o nome do perfil vira um nome de arquivo que o Windows aceita")
+    from wolfs_screen_hitter.gui.app import nome_de_arquivo
+
+    checar("barra e dois pontos viram sublinhado", nome_de_arquivo("a/b:c") == "a_b_c", nome_de_arquivo("a/b:c"))
+    checar("asterisco e interrogacao saem", nome_de_arquivo("x*y?z") == "x_y_z", nome_de_arquivo("x*y?z"))
+    checar("so barra vira barra", nome_de_arquivo("2024/05") == "2024_05", nome_de_arquivo("2024/05"))
+    checar("nome reservado ganha prefixo", nome_de_arquivo("CON") == "_CON", nome_de_arquivo("CON"))
+    checar("vazio nao vira arquivo sem nome", nome_de_arquivo("   ") == "perfil", nome_de_arquivo("   "))
 
     print("8. o botao afunda ao clicar e dispara o comando")
     from wolfs_screen_hitter.gui.componentes import Botao
