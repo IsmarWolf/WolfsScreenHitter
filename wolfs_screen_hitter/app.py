@@ -127,6 +127,7 @@ def rodar_perfil(caminho_perfil, seguir=True, intervalo=DEFAULT_INTERVALO):
     estado = {"canto": None}
     ultimo_aviso = None
     sem_janela = False
+    sem_permissao = False
     capturas = 0
 
     try:
@@ -156,7 +157,18 @@ def rodar_perfil(caminho_perfil, seguir=True, intervalo=DEFAULT_INTERVALO):
                 alvo_x, alvo_y = destino
 
                 if seguir:
-                    pointer.aplicar(alvo_x, alvo_y, perfil.get("pointer"))
+                    if not pointer.aplicar(alvo_x, alvo_y, perfil.get("pointer")):
+                        if not sem_permissao:
+                            print(
+                                "O Windows recusou o movimento do cursor. "
+                                "A deteccao continua funcionando, mas o mouse "
+                                "nao vai obedecer. Normalmente e privilegio: "
+                                "abra o terminal como administrador, ou fora de "
+                                "um terminal elevado."
+                            )
+                            sem_permissao = True
+                    else:
+                        sem_permissao = False
 
                 grupo = (
                     int(alvo_x) // GRUPO_AVISO,

@@ -15,7 +15,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import cv2
 import numpy as np
 
-from wolfs_screen_hitter import detect, pointer, profiles, windows
+from wolfs_screen_hitter import detect, pointer, profiles, win, windows
 from wolfs_screen_hitter.capture import ScreenCapture
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -208,6 +208,29 @@ checar("perfil invalido sai com codigo 2", resultado.returncode == 2, str(result
 checar("perfil invalido sem stack trace", "Traceback" not in saida, saida.strip()[:70])
 checar("perfil invalido nomeia o campo", "detector" in saida and "inexistente" in saida)
 invalido.unlink()
+
+print("16. o retorno do SendInput chega em move_to")
+# Nao depende do mouse: substitui o SendInput por uma funcao que devolve um
+# valor conhecido. Antes da correcao, _enviar ignorava o retorno e
+# move_to devolvia sempre False, que e o caso que precisa ser distinguido.
+real = win.user32.SendInput
+try:
+    win.user32.SendInput = lambda *argumentos: 1
+    checar("SendInput aceito devolve True", win.move_to(10, 10) is True)
+    win.user32.SendInput = lambda *argumentos: 0
+    checar("SendInput recusado devolve False", win.move_to(10, 10) is False)
+    win.user32.SendInput = lambda *argumentos: 2
+    checar("valor estranho nao vira True", win.move_to(10, 10) is False)
+finally:
+    win.user32.SendInput = real
+
+# A assinatura tem que ter tres parametros: SendInput nao tem parametro de
+# saida, a contagem de eventos aceitos e o retorno.
+checar(
+    "argtypes com 3 parametros",
+    len(win.user32.SendInput.argtypes) == 3,
+    str(len(win.user32.SendInput.argtypes)),
+)
 
 print()
 if pulados:

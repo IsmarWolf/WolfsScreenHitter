@@ -44,6 +44,15 @@ class _INPUT(ctypes.Structure):
     ]
 
 
+# SendInput devolve quantos eventos aceitou, e 0 quando o Windows recusa o
+# input, o que acontece por bloqueio de privilegio (UIPI) quando o processo
+# roda com integridade menor que a do desktop. Sem ler esse retorno,
+# move_to() acabaria sempre devolvendo False, que e justamente o caso que
+# precisa ser distinguido de sucesso.
+user32.SendInput.restype = wintypes.UINT
+user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(_INPUT), ctypes.c_int)
+
+
 def cursor_position():
     point = wintypes.POINT()
     user32.GetCursorPos(ctypes.byref(point))
@@ -68,9 +77,9 @@ def _enviar(flags, x=0, y=0):
         time=0,
         dwExtraInfo=None,
     )
-    enviados = ctypes.c_ulong(0)
-    user32.SendInput(1, ctypes.byref(entrada), ctypes.sizeof(_INPUT))
-    return enviados.value
+    # A contagem de eventos aceitos e o proprio valor de retorno do
+    # SendInput; nao existe parametro de saida para ela.
+    return int(user32.SendInput(1, ctypes.byref(entrada), ctypes.sizeof(_INPUT)))
 
 
 def move_to(x, y):
