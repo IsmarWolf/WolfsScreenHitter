@@ -42,3 +42,9 @@ include = ["wolfs_screen_hitter*"]
 
 [tool.setuptools.package-data]
 wolfs_screen_hitter = ["py.typed"]
+# A fonte e a licenca andam junto do codigo: a tela precisa da Outfit para
+# sair como foi desenhada, e a licenca OFL exige que ela acompanhe a fonte.
+wolfs_screen_hitter.gui = [
+    "design/fontes/*.ttf",
+    "design/fontes/OFL.txt",
+]

@@ -1,86 +1,33 @@
-"""Widgets do formulario, gerados a partir dos campos do modelo.
+"""Monta o formulario a partir do modelo, um acordeao por grupo.
 
-Cada Campo vira uma linha: rotulo, entrada e a dica. Nada aqui decide o
-que e valido; isso e do modelo. A janela so pede uma linha por Campo e
-depois le o texto de volta.
+O modelo diz quais grupos existem, em que ordem, e quais campos aparecem em
+cada um conforme o contexto. Aqui isso vira uma arvore de Acordeao, e cada
+campo vira uma LinhaCampo. Nada aqui decide o que e um perfil valido.
+
+Dois detalhes de comportamento moram aqui e nao no modelo, porque sao da
+tela e nao do perfil:
+
+Um grupo nasce fechado, menos o primeiro. Com tudo aberto a janela
+comeca parecendo um formulario gigante em vez de uma lista de coisas para
+abrir.
+
+E o grupo aberto continua aberto depois de um redesenho. Trocar o detector
+reconstroi a arvore inteira, e esquecer qual estava aberto faria a tela
+pular a cada clique.
 """
 
-import tkinter as tk
-from tkinter import ttk
-
 from . import model
+from .componentes import Acordeao, LinhaCampo
+from .design import tokens
+
+# O grupo que nasce aberto quando ainda nao ha preferencia do usuario.
+_PRIMEIRO = "identidade"
+
+_RESPIRO = tokens.px(tokens.ESPACO_1) // 2
 
 
-class Linha:
-    """Uma linha do formulario: o widget, e o texto que ele representa."""
-
-    def __init__(self, campo, widget, dica):
-        self.campo = campo
-        self.widget = widget
-        self.dica = dica
-        self.erro = None
-
-    @property
-    def caminho(self):
-        return self.campo.caminho
-
-    def texto(self):
-        if isinstance(self.widget, ttk.Combobox):
-            return self.widget.get()
-        if isinstance(self.widget, tk.BooleanVar):
-            return model.para_texto(self.widget.get())
-        return self.widget.get()
-
-    def definir(self, texto):
-        """Coloca um valor na linha sem contar como edicao do usuario."""
-        if isinstance(self.widget, ttk.Combobox):
-            self.widget.set(texto)
-        elif isinstance(self.widget, tk.BooleanVar):
-            self.widget.set(model.de_texto(texto, "bool", self.caminho))
-        else:
-            self.widget.delete(0, tk.END)
-            self.widget.insert(0, texto)
-
-    def marcar_erro(self, mensagem):
-        self.erro = mensagem
-        if isinstance(self.widget, ttk.Entry):
-            self.widget.configure(style="Erro.TEntry")
-        self.dica.configure(text=mensagem, foreground="#b00020")
-
-    def limpar_erro(self):
-        self.erro = None
-        if isinstance(self.widget, ttk.Entry):
-            self.widget.configure(style="TEntry")
-        self.dica.configure(text=self.campo.dica, foreground="#666666")
-
-
-def criar_linha(quadro, campo, valor):
-    """Cria a linha de um campo dentro de quadro e devolve a Linha."""
-    caixa = tk.Frame(quadro)
-    caixa.pack(fill="x", pady=3)
-
-    tk.Label(caixa, text=campo.rotulo, width=22, anchor="w").pack(side="left")
-
-    if campo.tipo == "escolha":
-        widget = ttk.Combobox(caixa, values=list(campo.opcoes), state="readonly", width=18)
-    elif campo.tipo == "bool":
-        widget = tk.BooleanVar(value=model.de_texto(valor, "bool", campo.caminho))
-        ttk.Checkbutton(caixa, variable=widget).pack(side="left")
-    else:
-        widget = ttk.Entry(caixa, width=20)
-        widget.insert(0, valor)
-
-    if not isinstance(widget, tk.BooleanVar):
-        widget.pack(side="left", padx=(6, 0))
-
-    dica = tk.Label(caixa, text=campo.dica, foreground="#666666", anchor="w", wraplength=300)
-    dica.pack(side="left", fill="x", expand=True, padx=(10, 0))
-
-    return Linha(campo, widget, dica)
-
-
-def montar_formulario(quadro, campos, ao_mudar):
-    """Desenha os grupos visiveis e devolve as linhas por caminho.
+def montar_formulario(quadro, campos, ao_mudar, aberto=None, ao_grupo=None):
+    """Desenha os grupos visiveis e devolve (linhas, acordeoes).
 
     Recebe o dicionario achatado que a janela mantem, e nao o perfil
     aninhado: assim a tela mostra exatamente o que esta em edicao, sem
@@ -88,37 +35,29 @@ def montar_formulario(quadro, campos, ao_mudar):
     """
     contexto = model.contexto_dos_campos(campos)
     linhas = {}
+    grupos = {}
+    primeiro = True
 
-    for _identificador, titulo, condicao, grupo in model.GRUPOS:
+    for identificador, titulo, condicao, grupo in model.GRUPOS:
         if condicao and not model.PERFILADO[condicao](contexto):
             continue
 
-        moldura = ttk.LabelFrame(quadro, text=titulo, padding=8)
-        moldura.pack(fill="x", padx=6, pady=6)
+        acordeao = Acordeao(quadro, identificador, titulo, ao_mudar=ao_grupo)
+        acordeao.pack(fill="x", pady=(0, tokens.px(tokens.ESPACO_2)))
+        grupos[identificador] = acordeao
 
         for campo in grupo:
             if not campo.visivel(contexto):
                 continue
-            linha = criar_linha(moldura, campo, campos.get(campo.caminho, ""))
-            _ligar(linha, ao_mudar)
+            linha = LinhaCampo(
+                acordeao.conteudo, campo, campos.get(campo.caminho, ""), ao_mudar
+            )
+            linha.pack(fill="x", pady=_RESPIRO)
             linhas[campo.caminho] = linha
 
-    return linhas
+        alvo = aberto if aberto is not None else (_PRIMEIRO if primeiro else None)
+        if identificador == alvo:
+            acordeao.abrir(animado=False)
+        primeiro = False
 
-
-def _ligar(linha, ao_mudar):
-    """Avisa a cada mudanca da linha, e nao so quando o foco sai da caixa."""
-    widget = linha.widget
-
-    def avisar(*_args):
-        if linha.erro:
-            linha.limpar_erro()
-        ao_mudar(linha.caminho, linha.texto())
-
-    if isinstance(widget, ttk.Combobox):
-        widget.bind("<<ComboboxSelected>>", avisar)
-    elif isinstance(widget, tk.BooleanVar):
-        widget.trace_add("write", avisar)
-    else:
-        widget.bind("<KeyRelease>", avisar)
-        widget.bind("<FocusOut>", avisar)
+    return linhas, grupos

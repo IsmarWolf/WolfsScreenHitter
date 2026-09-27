@@ -48,18 +48,42 @@ with tempfile.TemporaryDirectory() as pasta:
     checar("o formulario tem linhas", len(app.linhas) > 20, str(len(app.linhas)))
     checar("a lista comeca vazia numa pasta nova", app.caminhos == [], str(app.caminhos))
 
-    grupos = [c.cget("text") for c in app.formulario.winfo_children()]
+    grupos = [acordeao.identificador for acordeao in app.grupos.values()]
     checar(
         "todos os grupos do perfil estao na tela",
-        grupos == ["Perfil", "Janela", "Onde procurar", "Alvo por cor", "Cursor", "Parada"],
+        grupos == ["identidade", "janela", "regiao", "alvo_forma", "cursor", "controles"],
         str(grupos),
     )
+    checar(
+        "um unico grupo nasce aberto",
+        [g.identificador for g in app.grupos.values() if g.esta_aberto()] == ["identidade"],
+        str([g.identificador for g in app.grupos.values() if g.esta_aberto()]),
+    )
+    # So os campos do grupo aberto sao conferidos: em um acordeao, o conteudo
+    # de um grupo fechado e propositalmente nao mapeado, e Width de 1px ali
+    # e o comportamento certo, nao um defeito.
+    abertos = {g.identificador for g in app.grupos.values() if g.esta_aberto()}
+    visiveis = {
+        linha.campo.caminho
+        for grupo in app.grupos.values()
+        if grupo.identificador in abertos
+        for linha in grupo.conteudo.winfo_children()
+    }
     zerados = [
         linha.campo.caminho
         for linha in app.linhas.values()
-        if hasattr(linha.widget, "winfo_width") and linha.widget.winfo_width() <= 1
+        if linha.campo.caminho in visiveis and linha.widget.winfo_width() <= 1
     ]
-    checar("nenhum campo nasce invisivel", not zerados, str(zerados))
+    checar("nenhum campo do grupo aberto nasce invisivel", not zerados, str(zerados))
+    checar("o grupo aberto tem campos", len(visiveis) > 0, str(sorted(visiveis)))
+
+    print("1b. abrir um grupo fecha o outro")
+    app.grupos["janela"].abrir(animado=False)
+    app.update()
+    app.grupos["cursor"].abrir(animado=False)
+    app.update()
+    abertos = [g.identificador for g in app.grupos.values() if g.esta_aberto()]
+    checar("so um grupo fica aberto", abertos == ["cursor"], str(abertos))
 
     print("2. trocar o detector redesenha sem travar")
     antes = len(app.linhas)
@@ -111,6 +135,56 @@ with tempfile.TemporaryDirectory() as pasta:
     app.update()
     checar("o campo mostra o valor do disco", app.linhas["target.size.min"].texto() == "77", app.linhas["target.size.min"].texto())
     checar("a lista tem o perfil", destino in app.caminhos, str(app.caminhos))
+
+    print("7. a lista desenhada navega pelo teclado")
+    lista = app.lista
+    checar("a lista foi alimentada", len(lista.itens) == 1, str(lista.itens))
+    lista.focus_set()
+    lista.event_generate("<Down>")
+    app.update()
+    checar("a seta para baixo seleciona", lista.selecionado == 0, str(lista.selecionado))
+    lista.event_generate("<Home>")
+    app.update()
+    checar("Home vai para o primeiro", lista.selecionado == 0, str(lista.selecionado))
+    lista.event_generate("<End>")
+    app.update()
+    checar("End vai para o ultimo", lista.selecionado == len(lista.itens) - 1, str(lista.selecionado))
+    checar(
+        "o desenho tem uma linha por perfil",
+        len(lista.find_all()) > len(lista.itens),
+        str(len(lista.find_all())),
+    )
+
+    print("8. o botao afunda ao clicar e dispara o comando")
+    from wolfs_screen_hitter.gui.componentes import Botao
+
+    disparados = []
+    # O botao precisa estar mapeado: evento sintetico nao chega em widget
+    # invisivel, e o teste passaria sem exercitar nada.
+    botao = Botao(app, "teste", lambda: disparados.append(1))
+    botao.place(x=8, y=8)
+    app.update()
+    checar("o botao tem face do tamanho do texto", botao.face.winfo_width() > 40, str(botao.face.winfo_width()))
+    checar("o texto vai em caixa-alta", botao.face.cget("text") == "TESTE", botao.face.cget("text"))
+
+    botao.face.event_generate("<ButtonPress-1>", x=5, y=5)
+    app.update()
+    checar("pressionado, a face anda 2px", botao.face.winfo_x() == 2, str(botao.face.winfo_x()))
+    botao.face.event_generate("<ButtonRelease-1>", x=5, y=5)
+    app.update()
+    checar("soltou, a face volta", botao.face.winfo_x() == 0, str(botao.face.winfo_x()))
+    checar("o comando rodou uma vez", disparados == [1], str(disparados))
+    botao.destroy()
+
+    print("9. o design system esta com a paleta pedida")
+    from wolfs_screen_hitter.gui.design import tokens, tipografia
+
+    checar("a paleta e a do sistema", tokens.AZUL == "#1040C0" and tokens.AMARELO == "#F0C020"
+           and tokens.VERMELHO == "#D02020" and tokens.PRETO == "#121212", "")
+    checar("a fonte embutida entrou", tipografia.usando_outfit(), tipografia.fonte("corpo").actual("family"))
+    checar("o cabecalho e azul", app.cabecalho.cget("bg") == tokens.AZUL, app.cabecalho.cget("bg"))
+    checar("o status e amarelo", app.status_bar.cget("bg") == tokens.AMARELO, app.status_bar.cget("bg"))
+    checar("o rodape e preto", app.rodape.cget("bg") == tokens.PRETO, app.rodape.cget("bg"))
 
     app.destroy()
     app.update()
