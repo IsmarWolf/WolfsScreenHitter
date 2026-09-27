@@ -73,6 +73,19 @@ Copie um dos perfis de exemplo e edite o bloco `target`. Os perfis que acompanha
 
 O ciclo é sempre o mesmo: copie um perfil, ajuste o `target`, teste com `check --debug`, repita. Você nunca precisa mexer em Python. As receitas estão em [Ajustando um perfil](#ajustando-um-perfil).
 
+**Ou edite numa janela**
+
+```bash
+python -m wolfs_screen_hitter.gui
+```
+
+O mesmo perfil, numa janela. **Novo** pede um nome e grava o arquivo na hora, então todo perfil do dropdown já tem nome. Os grupos de campos abrem um de cada vez, e os dois campos que exigiriam abrir um JSON para entender ganharam um botão no lugar:
+
+- **Selecionar na tela** cobre a tela principal. Arraste um retângulo em volta do alvo e os quatro números da região se preenchem. **Esc** cancela.
+- O campo do template tem um botão de pasta ao lado, para você escolher o PNG em vez de digitar um caminho.
+
+Um perfil criado aqui é um JSON comum na pasta `profiles/`. A janela e a linha de comando leem a mesma coisa.
+
 ---
 
 ## Comandos

@@ -73,6 +73,19 @@ Copy one of the example profiles and edit the `target` block. The shipped profil
 
 The loop is always the same: copy a profile, adjust `target`, test with `check --debug`, repeat. You never need to touch Python. [Tuning a profile](#tuning-a-profile) has the recipes.
 
+**Or edit it in a window**
+
+```bash
+python -m wolfs_screen_hitter.gui
+```
+
+The same profile, in a window. **Novo** asks for a name and saves the file right away, so every profile in the dropdown has a name. The field groups open one at a time, and the two fields you would have to read a JSON file to understand have a button instead:
+
+- **Selecionar na tela** covers the primary screen. Drag a rectangle around the target and the four region numbers fill themselves in. **Esc** cancels.
+- The template field has a folder button next to it, so you pick the PNG instead of typing a path.
+
+A profile created here is an ordinary JSON file in `profiles/`. The window and the command line read the same thing.
+
 ---
 
 ## Commands
