@@ -205,6 +205,72 @@ with tempfile.TemporaryDirectory() as pasta:
     finally:
         modulo.pedir_texto = original
 
+    print("7b2. a janela de nome de verdade mostra botao, e nao funcao")
+    # A 7b troca pedir_texto por um duble, entao a janela real nunca era
+    # aberta. Foi por isso que um metodo local chamado "confirmar" passou
+    # a desenhar o repr da funcao no botao em vez do rotulo, e o defeito
+    # chegou inteiro ate a tela. Aqui a janela e aberta de verdade: o que
+    # se le e o que o usuario veria.
+    import tkinter as tk
+
+    from wolfs_screen_hitter.gui.componentes import dialogo
+
+    def _andar(raiz):
+        for filho in raiz.winfo_children():
+            yield filho
+            yield from _andar(filho)
+
+    def _botoes(janela):
+        """Os Botao da janela. Sao Frames, entao a busca e pela classe."""
+        from wolfs_screen_hitter.gui.componentes.botao import Botao
+
+        return [w for w in _andar(janela) if isinstance(w, Botao)]
+
+    achados = {}
+
+    def _inspecionar():
+        for janela in app.winfo_children():
+            if not isinstance(janela, tk.Toplevel):
+                continue
+            botoes = _botoes(janela)
+            achados["rotulos"] = [b._texto for b in botoes]
+            achados["exibidos"] = [b.face.cget("text") for b in botoes]
+            achados["largura"] = janela.winfo_width()
+            achados["altura"] = janela.winfo_height()
+            entrada = [w for w in _andar(janela) if isinstance(w, tk.Entry)]
+            achados["tem_entrada"] = bool(entrada)
+            if entrada:
+                entrada[0].delete(0, tk.END)
+                entrada[0].insert(0, "Pelo teste")
+            confirmar = [b for b in botoes if b.face.cget("text") == "CONFIRMAR"]
+            if confirmar:
+                confirmar[0]._executa()
+            else:
+                janela.destroy()
+
+    app.after(80, _inspecionar)
+    resposta = dialogo.pedir_texto(app, "Novo perfil", valor="", instrucao="Como chamar?")
+
+    rotulos = achados.get("rotulos", [])
+    exibidos = achados.get("exibidos", [])
+    checar("a janela abriu de verdade", bool(rotulos), str(rotulos))
+    # O que importa e o texto desenhado na face do botao, que e o que o
+    # usuario le. O atributo por tras vem em caixa normal, como os botoes
+    # da barra, e quem maiusculiza e o Botao.
+    checar(
+        "os botoes mostram os rotulos",
+        sorted(exibidos) == ["CANCELAR", "CONFIRMAR"],
+        str(exibidos),
+    )
+    checar(
+        "nenhum botao mostra um repr de funcao",
+        not any("function" in str(r) for r in rotulos + exibidos),
+        str(rotulos + exibidos),
+    )
+    checar("a janela tem largura de janela", achados.get("largura", 0) > 100, str(achados.get("largura")))
+    checar("a janela tem a entrada de nome", achados.get("tem_entrada") is True, str(achados.get("tem_entrada")))
+    checar("o que foi digitado voltou", resposta == "Pelo teste", str(resposta))
+
     print("7c. o nome do perfil vira um nome de arquivo que o Windows aceita")
     from wolfs_screen_hitter.gui.app import nome_de_arquivo
 
@@ -268,6 +334,36 @@ with tempfile.TemporaryDirectory() as pasta:
     app.update()
 
     print("7e. o botao de selecionar na tela escreve a regiao")
+    from wolfs_screen_hitter.gui.componentes.linha_acao import LinhaAcao
+
+    grupo_regiao = app.grupos["regiao"]
+    linha_acao = next(
+        c for c in grupo_regiao.conteudo.winfo_children() if isinstance(c, LinhaAcao)
+    )
+    campos_regiao = [
+        c
+        for c in grupo_regiao.conteudo.winfo_children()
+        if c.winfo_class() == "Frame" and not isinstance(c, LinhaAcao)
+    ]
+    espacador = linha_acao.winfo_children()[0]
+    rotulo_campo = campos_regiao[0].winfo_children()[0]
+    checar(
+        "a coluna vazia e um rotulo, e nao um frame de altura fixa",
+        espacador.winfo_class() == "Label",
+        espacador.winfo_class(),
+    )
+    checar(
+        "a coluna vazia nao e uma barra de 1px",
+        espacador.winfo_reqheight() > 1,
+        f"{espacador.winfo_reqheight()}px",
+    )
+    checar(
+        "o botao comeca alinhado com as entradas",
+        espacador.winfo_reqwidth() == rotulo_campo.winfo_reqwidth(),
+        f"acao {espacador.winfo_reqwidth()}px vs campo {rotulo_campo.winfo_reqwidth()}px",
+    )
+    checar("o grupo da regiao tem uma linha de acao", len(linha_acao.winfo_children()) == 3, str(len(linha_acao.winfo_children())))
+
     from wolfs_screen_hitter.gui.componentes import seletor_regiao
 
     app._so_um(app.grupos["regiao"])

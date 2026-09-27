@@ -22,9 +22,14 @@ from .lista import ListaPerfis
 class SeletorPerfil(tk.Frame):
     """Campo que mostra o perfil aberto e abre a lista ao clicar."""
 
-    def __init__(self, pai, ao_escolher, largura=260):
+    def __init__(self, pai, ao_escolher, ao_abrir=None, largura=260):
         super().__init__(pai, bg=tokens.PRETO, bd=0, highlightthickness=0)
         self.ao_escolher = ao_escolher
+        # Disparado toda vez que o popup abre. E o que sobrou do botao
+        # "Atualizar" que a tela tinha: reler a pasta no instante em que a
+        # lista vai aparecer e invisivel, e o perfil criado ou apagado la
+        # fora ja aparece sem ninguem pedir.
+        self.ao_abrir = ao_abrir
         self.caminho = None
         self.largura = largura
         self._pendentes = []
@@ -101,6 +106,12 @@ class SeletorPerfil(tk.Frame):
             self.nome.configure(text="NENHUM", fg=tokens.PRETO)
         else:
             self.nome.configure(text=caminho.stem + (" *" if sujo else ""), fg=tokens.AZUL)
+        # O destaque da lista tambem tem de mudar aqui. Quem salva um perfil
+        # novo ou apaga o aberto passa por definir_itens antes de
+        # definir_perfil, e a lista receberia o caminho antigo: o perfil
+        # acabaria criado e selecionado, mas com a marca em cima de outro.
+        if self._popup:
+            self._lista.definir_selecionado(self.caminho)
 
     # -- popup -----------------------------------------------------------
 
@@ -110,6 +121,8 @@ class SeletorPerfil(tk.Frame):
     def abrir(self):
         if self._popup:
             return
+        if self.ao_abrir is not None:
+            self.ao_abrir()
         self._popup = tk.Toplevel(self)
         self._popup.overrideredirect(True)
         self._popup.configure(bg=tokens.PRETO)

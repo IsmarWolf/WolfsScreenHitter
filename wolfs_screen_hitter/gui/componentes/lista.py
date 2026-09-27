@@ -74,6 +74,22 @@ class ListaPerfis(tk.Canvas):
             return self.itens[self.selecionado]
         return None
 
+    def definir_selecionado(self, caminho):
+        """Move so o destaque, sem tocar na lista de itens.
+
+        Separate de definir_itens porque quem salva ou apaga um perfil
+        precisa dos dois: a lista muda e o destaque tambem, mas o caminho
+        novo ja vem junto nos dois. Chamar definir_itens de novo com a
+        lista inteira daria o mesmo resultado e redesenharia duas vezes.
+        """
+        if caminho is None or caminho not in self.itens:
+            self.selecionado = -1
+        else:
+            self.selecionado = self.itens.index(caminho)
+        self._redesenhar()
+        if self.selecionado >= 0:
+            self._revelar(self.selecionado)
+
     def _indice_em(self, y):
         if not self.itens:
             return -1

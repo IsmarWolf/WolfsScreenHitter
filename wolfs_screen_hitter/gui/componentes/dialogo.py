@@ -23,7 +23,7 @@ from .botao import Botao
 from .painel import Divisor, Painel
 
 
-def pedir_texto(pai, titulo, valor="", instrucao="", confirmar="CONFIRMAR"):
+def pedir_texto(pai, titulo, valor="", instrucao="", confirmar="Confirmar"):
     """Abre uma janela pedindo um texto. Devolve o texto, ou None se cancelou.
 
     Bloqueia ate a janela fechar, entao quem chama continua logo abaixo
@@ -103,7 +103,7 @@ def pedir_texto(pai, titulo, valor="", instrucao="", confirmar="CONFIRMAR"):
     acoes = tk.Frame(janela, bg=tokens.BG_CANVAS, bd=0, highlightthickness=0)
     acoes.pack(fill="x", padx=tokens.px(tokens.ESPACO_4), pady=tokens.px(tokens.ESPACO_3))
 
-    def confirmar():
+    def _aceitar():
         texto = entrada.get().strip()
         if not texto:
             erro.configure(text="O NOME NAO PODE FICAR VAZIO.")
@@ -112,16 +112,21 @@ def pedir_texto(pai, titulo, valor="", instrucao="", confirmar="CONFIRMAR"):
         resposta["texto"] = texto
         janela.destroy()
 
-    def cancelar():
+    def _cancelar():
         janela.destroy()
 
-    Botao(acoes, confirmar, confirmar, variante="primario").pack(side="left")
-    Botao(acoes, "Cancelar", cancelar, variante="contorno").pack(
+    # Os rotulos vem do parametro, nao de um metodo com o mesmo nome: uma
+    # funcao local chamada "confirmar" esconderia o texto e o Botao
+    # acabaria desenhando o repr da funcao em vez do botao. O texto sai em
+    # caixa normal, como os botoes da barra; quem desenha e o Botao que
+    # maiusculiza.
+    Botao(acoes, confirmar, _aceitar, variante="primario").pack(side="left")
+    Botao(acoes, "Cancelar", _cancelar, variante="contorno").pack(
         side="left", padx=(tokens.px(tokens.ESPACO_2), 0)
     )
 
-    entrada.bind("<Return>", lambda _e: confirmar())
-    janela.bind("<Escape>", lambda _e: cancelar())
+    entrada.bind("<Return>", lambda _e: _aceitar())
+    janela.bind("<Escape>", lambda _e: _cancelar())
     entrada.focus_set()
 
     janela.update_idletasks()

@@ -7,20 +7,10 @@ entraria na validacao e acabaria gravado dentro do JSON do perfil.
 """
 
 import tkinter as tk
-import tkinter.font as tkfont
 
 from ..design import tokens, tipografia
 from .botao import Botao
-from .campo import COLUNA_ROTULO
-
-
-def _largura_da_coluna():
-    """O rotulo dos campos reserva COLUNA_ROTULO caracteres, e o botao
-    precisa do mesmo espaco a esquerda. Converter com a fonte real da tela
-    e melhor do que um pixel chutado: trocar a fonte ou a escala muda os
-    dois lados junto."""
-    fonte = tkfont.Font(font=tipografia.fonte("label"))
-    return fonte.measure("0" * COLUNA_ROTULO)
+from .campo import rotulo_de_coluna
 
 
 class LinhaAcao(tk.Frame):
@@ -31,10 +21,15 @@ class LinhaAcao(tk.Frame):
         self.acao = acao
         self.comando = comando
 
-        # O mesmo recuo dos rotulos, para o botao comeca na coluna em que
-        # comeca o texto dos campos e nao na borda do cartao.
-        tk.Frame(self, bg=fundo, width=_largura_da_coluna(), height=1, bd=0,
-                 highlightthickness=0).pack(side="left")
+        # A coluna vazia e um Rotulo, e nao um Frame de largura calculada. Um
+        # Frame com altura fixa vira uma barra de um pixel atravessando a
+        # linha, que e lida como defeito e nao como espacamento. E o rotulo
+        # vem do mesmo lugar do rotulo de campo, entao o botao comeca
+        # exatamente onde comecam as entradas.
+        rotulo_de_coluna(self, "", fundo).pack(
+            side="left", padx=(0, tokens.px(tokens.ESPACO_2)),
+            pady=tokens.px(tokens.ESPACO_1),
+        )
 
         Botao(self, acao.rotulo, comando, variante="primario").pack(
             side="left", padx=(0, tokens.px(tokens.ESPACO_2)),

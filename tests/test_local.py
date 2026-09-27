@@ -60,7 +60,21 @@ checar("pyautogui ausente", resultado.stdout.strip() == "False", resultado.stdou
 
 print("3. perfis carregam e validam")
 lista = profiles.list_profiles()
-checar("tres perfis no pacote", len(lista) == 3, f"{len(lista)}")
+# A pasta de perfis e do usuario: o app cria o perfil.json nela no primeiro
+# uso, e qualquer perfil criado na tela entra na mesma pasta. Contar a
+# quantidade exata quebrava assim que o programa fosse aberto uma vez, sem
+# que nada do pacote estivesse errado. O que importa e que os tres perfis
+# que vao no pacote existam e carreguem, e que nada da pasta esteja
+# corrompido.
+_EMBALADOS = ("circulo_claro.json", "faixa_hsv.json", "letra_template.json")
+nomes = {caminho.name for caminho in lista}
+faltando = [nome for nome in _EMBALADOS if nome not in nomes]
+checar(
+    "os tres perfis do pacote estao na pasta",
+    not faltando,
+    f"faltando: {faltando}" if faltando else f"e mais {[n for n in nomes if n not in _EMBALADOS]}",
+)
+checar("a pasta tem ao menos os tres do pacote", len(lista) >= 3, f"{len(lista)}")
 for caminho in lista:
     try:
         perfis = profiles.load(caminho)

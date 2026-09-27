@@ -102,7 +102,14 @@ class Estado:
         return self.caminho.name + (" *" if self.sujo else "")
 
     def resumo(self):
-        """Linha curta de estado, para a barra de cima."""
+        """Linha curta de estado, para a barra de cima.
+
+        So o nome do arquivo. A pasta tambem e o diretorio de todos os
+        perfis, e por isso ela ja esta no unico lugar onde muda: o seletor
+        de perfil, que abre em cima dela. Repetir o caminho inteiro na
+        barra empurrava o botao de fechar para fora da janela e nao
+        acrescentava informacao nenhuma.
+        """
         if not self.caminho:
             return "perfil novo, sem nome"
-        return f"{self.caminho.name} | {self.diretorio}"
+        return self.caminho.name

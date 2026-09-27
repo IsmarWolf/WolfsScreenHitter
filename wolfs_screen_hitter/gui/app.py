@@ -168,7 +168,14 @@ class Aplicacao(tk.Tk):
         # O perfil aberto vem antes dos botoes: e ele que diz o que os botoes
         # vao mexer. Um "Salvar" sem saber em qual arquivo se salva e a
         # duvida que fica, e ela nao precisa existir.
-        self.seletor = SeletorPerfil(barra, self._abrir_da_lista, largura=_SELETOR)
+        # O botao "Atualizar" foi embora. Todo campo ja grava ao perder o
+        # foco, o perfil ja nasce gravado e a lista e relida no instante em
+        # que o seletor abre, entao nao sobrava nada para ele mudar: ele so
+        # ocupava espaco na barra e dava a ideia de que algo precisava
+        # ser atualizado a mao.
+        self.seletor = SeletorPerfil(
+            barra, self._abrir_da_lista, ao_abrir=self.atualizar_lista, largura=_SELETOR
+        )
         self.seletor.pack(side="left")
 
         tk.Frame(barra, bg=tokens.CINZA, width=tokens.px(tokens.BORDA_GROSSA)).pack(
@@ -185,10 +192,6 @@ class Aplicacao(tk.Tk):
             Botao(barra, rotulo, comando, variante=variante).pack(
                 side="left", padx=(0, tokens.px(tokens.ESPACO_1))
             )
-
-        Botao(barra, "Atualizar", self.atualizar_lista, variante="fantasma").pack(
-            side="left", padx=(tokens.px(tokens.ESPACO_1), 0)
-        )
 
         tk.Label(
             barra,

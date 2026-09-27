@@ -29,6 +29,27 @@ VERDADEIRO = ("1", "true", "sim", "s", "yes", "verdadeiro")
 COLUNA_ROTULO = 22
 
 
+def rotulo_de_coluna(pai, texto, fundo):
+    """Rotulo da coluna da esquerda, com a metrica de todos os outros.
+
+    Existe para a linha de acao nao repetir a conta. As duas linhas usavam
+    o mesmo width, e mesmo assim discordavam em 4px: o rotulo de campo nao
+    declara bd, entao herdava a borda default de 2px do Tk, invisivel
+    porque a cor e a do fundo, mas conta na largura. Um input que comecava
+    4px depois da outra linha ficava visivelmente torto. Unico jeito de nao
+    voltar a divergir e as duas chamarem a mesma funcao.
+    """
+    return tk.Label(
+        pai,
+        text=tipografia.maiuscula(texto),
+        font=tipografia.fonte("label"),
+        bg=fundo,
+        fg=tokens.PRETO,
+        anchor="w",
+        width=COLUNA_ROTULO,
+    )
+
+
 def para_texto(valor):
     return "sim" if valor else "nao"
 
@@ -45,15 +66,7 @@ class LinhaCampo(tk.Frame):
         self.erro = None
         self._trace = None
 
-        self._rotulo = tk.Label(
-            self,
-            text=tipografia.maiuscula(campo.rotulo),
-            font=tipografia.fonte("label"),
-            bg=fundo,
-            fg=tokens.PRETO,
-            anchor="w",
-            width=COLUNA_ROTULO,
-        )
+        self._rotulo = rotulo_de_coluna(self, campo.rotulo, fundo)
         self._rotulo.pack(
             side="left", padx=(0, tokens.px(tokens.ESPACO_2)), pady=tokens.px(tokens.ESPACO_1)
         )
